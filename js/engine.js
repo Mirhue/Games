@@ -4,7 +4,7 @@ import {
   NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS, SKILL_GROWTH,
-  BASE_POWER, WEAPON_BONUS_CAP, WEAPONS, VAULTS,
+  BASE_POWER, WEAPON_BONUS_CAP, WEAPON_GROWTH, WEAPONS, VAULTS,
   INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
   OFFLINE_RAID_AFTER_MS, GODFATHER,
@@ -83,9 +83,17 @@ export function buySkill(state, skillId, now) {
   return { ok: true, state: s, events };
 }
 
+export const weaponCount = (state, weaponId) => state.weapons[weaponId] ?? 0;
+
+export function weaponPrice(state, weaponId) {
+  const w = WEAPONS.find((x) => x.id === weaponId);
+  return Math.round(w.price * WEAPON_GROWTH ** weaponCount(state, weaponId));
+}
+
+// The strongest weapon type you own (it sets the muscle-job bonus).
 export function bestWeapon(state) {
   let best = null;
-  for (const w of WEAPONS) if (state.weapons[w.id] && (!best || w.power > best.power)) best = w;
+  for (const w of WEAPONS) if (weaponCount(state, w.id) > 0 && (!best || w.power > best.power)) best = w;
   return best;
 }
 
@@ -93,24 +101,32 @@ export function weaponBonus(state) {
   return Math.min(WEAPON_BONUS_CAP, bestWeapon(state)?.bonus ?? 0);
 }
 
+function crewPower(state) {
+  let total = 0;
+  for (const w of WEAPONS) total += weaponCount(state, w.id) * w.power;
+  return total;
+}
+
 export function power(state) {
-  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + perk(state, 'power');
+  return BASE_POWER + crewPower(state) + perk(state, 'power');
 }
 
 export function defense(state) {
-  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + perk(state, 'defense');
+  return BASE_POWER + crewPower(state) + perk(state, 'defense');
 }
 
+// Buys one more copy of a weapon for your crew.
 export function buyWeapon(state, weaponId, now) {
   const w = WEAPONS.find((x) => x.id === weaponId);
   if (!w) return refuse(state, 'unknown', 'Unknown weapon.');
-  if (state.weapons[w.id]) return refuse(state, 'owned', 'You already own that.');
   if (w.rank > rankIndex(state)) return refuse(state, 'locked', `Dealers only sell that to a ${RANKS[w.rank].name}.`);
-  if (state.cash < w.price) return refuse(state, 'cash', `You need ${money(w.price)} in cash.`);
+  const price = weaponPrice(state, weaponId);
+  if (state.cash < price) return refuse(state, 'cash', `You need ${money(price)} in cash.`);
   const s = clone(state);
-  s.cash -= w.price;
-  s.weapons[w.id] = 1;
-  const events = [good(`You bought a ${w.name}.`)];
+  s.cash -= price;
+  s.weapons[w.id] = weaponCount(state, w.id) + 1;
+  const n = s.weapons[w.id];
+  const events = [good(n === 1 ? `You bought a ${w.name}.` : `Another ${w.name} for the crew (×${n}).`)];
   addLog(s, events, now);
   return { ok: true, state: s, events };
 }

@@ -104,17 +104,19 @@ export const SKILLS = [
   node('street', 3, 'Second Wind', { nerveMax: 10 }, { maxLevel: 3, baseCost: 80 }),
 ];
 
-// Weapons: only the best owned weapon counts. `bonus` is added to the success
-// chance of muscle jobs; `power` feeds rival fights and raid defense.
+// Weapons arm your crew: every copy adds its power to power and defense,
+// and the n-th copy costs price × WEAPON_GROWTH^n. The muscle-job `bonus`
+// comes from your best weapon type only. perks are per copy (see PERK_CAPS).
 export const BASE_POWER = 10;
 export const WEAPON_BONUS_CAP = 0.2;
+export const WEAPON_GROWTH = 1.25;
 export const WEAPONS = [
   { id: 'knuckles', name: 'Brass knuckles', price: 150, power: 5, bonus: 0.03, rank: 0 },
-  { id: 'knife', name: 'Switchblade', price: 1_200, power: 12, bonus: 0.06, rank: 1 },
-  { id: 'pistol', name: 'Pistol', price: 9_000, power: 30, bonus: 0.09, rank: 2 },
-  { id: 'shotgun', name: 'Sawed-off shotgun', price: 60_000, power: 70, bonus: 0.12, rank: 3 },
-  { id: 'smg', name: 'Tommy gun', price: 400_000, power: 160, bonus: 0.15, rank: 4 },
-  { id: 'rifle', name: 'Assault rifle', price: 2_500_000, power: 380, bonus: 0.18, rank: 4 },
+  { id: 'knife', name: 'Switchblade', price: 1_200, power: 12, bonus: 0.06, rank: 1, perks: { heatReduction: 0.02 } },
+  { id: 'pistol', name: 'Silenced pistol', price: 9_000, power: 30, bonus: 0.09, rank: 2, perks: { heatReduction: 0.03 } },
+  { id: 'shotgun', name: 'Sawed-off shotgun', price: 60_000, power: 70, bonus: 0.12, rank: 3, perks: { nerveMax: 3 } },
+  { id: 'smg', name: 'Tommy gun', price: 400_000, power: 160, bonus: 0.15, rank: 4, perks: { nerveRegen: 0.04 } },
+  { id: 'rifle', name: 'Assault rifle', price: 2_500_000, power: 380, bonus: 0.18, rank: 4, perks: { nerveMax: 5 } },
   { id: 'rpg', name: 'Rocket launcher', price: 15_000_000, power: 900, bonus: 0.2, rank: 5 },
 ];
 

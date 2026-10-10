@@ -1,18 +1,19 @@
 // Renders the game state into the page. Pure string building, no game rules.
 import {
   MISSIONS, RANKS, SKILLS, SKILL_BRANCHES, WEAPONS, VAULTS, INVESTMENTS, RIVALS, GODFATHER,
-  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS, MASTERY, OUTGROWN,
+  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS, MASTERY, OUTGROWN, METALS, MARKET,
 } from './data.js';
 import {
   rankIndex, rankName, nerveMax, successChance, arrestChance, perk, inJail, bailCost,
   bribeCost, netWorth, bestWeapon, power, defense, investmentPrice, incomePerMin, rivalState,
   fightOdds, raidOdds, activeRaider, skillLevel, skillCost, skillUnlocked, weaponCount,
   weaponPrice, weaponBonus, nerveRegenMs, heatDecayRate, masteryLevel, outgrownLevel, jobNerve,
+  metalBuyPrice, metalSellPrice, maxBars,
 } from './engine.js';
 
 export const TABS = [
   ['jobs', 'Jobs'], ['skills', 'Skills'], ['arsenal', 'Arsenal'], ['vault', 'Vault'],
-  ['business', 'Business'], ['rivals', 'Rivals'], ['stats', 'Stats'],
+  ['business', 'Business'], ['market', 'Market'], ['rivals', 'Rivals'], ['stats', 'Stats'],
 ];
 
 export function fmt(n) {
@@ -254,6 +255,77 @@ function businessPanel(s) {
   return html + '</div>';
 }
 
+// Sparkline of the last 2 hours of prices, with the fair value as a dashed
+// reference line and a native tooltip per minute.
+function sparkline(history, fair, name) {
+  const W = 240;
+  const H = 56;
+  const pad = 4;
+  const lo = Math.min(...history, fair);
+  const hi = Math.max(...history, fair);
+  const span = hi - lo || 1;
+  const n = history.length;
+  const x = (i) => (n === 1 ? W - pad : pad + (i / (n - 1)) * (W - 2 * pad));
+  const y = (p) => H - pad - ((p - lo) / span) * (H - 2 * pad);
+  const points = history.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+  const step = n > 1 ? (W - 2 * pad) / (n - 1) : W;
+  const hits = history.map((p, i) =>
+    `<rect x="${(x(i) - step / 2).toFixed(1)}" y="0" width="${step.toFixed(1)}" height="${H}" fill="transparent"><title>${n - 1 - i === 0 ? 'Now' : `${n - 1 - i} min ago`}: ${fmt(p)}</title></rect>`).join('');
+  const last = history[n - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="${name} over the last ${n} minutes: low ${fmt(Math.min(...history))}, high ${fmt(Math.max(...history))}, now ${fmt(last)}">
+    <line x1="0" x2="${W}" y1="${y(fair).toFixed(1)}" y2="${y(fair).toFixed(1)}" class="spark-fair"/>
+    <polyline points="${points}" class="spark-line"/>
+    <circle cx="${x(n - 1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="3.5" class="spark-dot"/>
+    ${hits}
+  </svg>`;
+}
+
+function marketPanel(s) {
+  const r = rankIndex(s);
+  let html = `<h2>Market</h2><p class="hint">Buy precious metals and sell them when the price is right. Prices drift around a fair value and jump on news.
+    You buy ${pct(MARKET.spread)} above and sell ${pct(MARKET.spread)} below the market price. Bars sit in a safe deposit box: no raider or cop can touch them.</p>`;
+  for (const n of s.market.news) {
+    html += `<div class="banner info"><span><b>${METALS.find((m) => m.id === n.metal).name}:</b> ${n.text}</span></div>`;
+  }
+  html += '<div class="grid">';
+  for (const m of METALS) {
+    const locked = m.rank > r;
+    const price = s.market.prices[m.id];
+    const history = s.market.history[m.id];
+    const hourAgo = history[Math.max(0, history.length - 61)];
+    const change = price / hourAgo - 1;
+    const owned = s.metals[m.id] ?? 0;
+    const basis = s.metalCost[m.id] ?? 0;
+    const value = owned * metalSellPrice(s, m.id);
+    const pl = value - basis;
+    const max = maxBars(s, m.id);
+    const arrow = change >= 0 ? '▲' : '▼';
+    html += `<div class="card ${locked ? 'locked' : owned ? 'owned' : ''}">
+      ${head(m.icon, m.name)}
+      ${row('Price', `${fmt(price)} <span class="${change >= 0 ? 'chance-good' : 'chance-bad'}">${arrow} ${Math.abs(change * 100).toFixed(1)}%</span>`)}
+      ${sparkline(history, m.fair, m.name)}
+      ${row('Fair value', `≈ ${fmt(m.fair)}`)}
+      ${row('Buy / sell', `${fmt(metalBuyPrice(s, m.id))} / ${fmt(metalSellPrice(s, m.id))}`)}
+      ${owned ? row('You own', `${owned} bar${owned > 1 ? 's' : ''} · ${fmt(value)}`) : ''}
+      ${owned ? row('Paid on average', fmt(basis / owned)) : ''}
+      ${owned ? row(pl >= 0 ? 'Profit' : 'Loss', `${pl >= 0 ? '▲' : '▼'} ${fmt(Math.abs(pl))}`, pl >= 0 ? 'chance-good' : 'chance-bad') : ''}
+      ${locked ? row('Requires', RANKS[m.rank].name) : ''}
+      <div class="trade">
+        ${btn('buy-metal', 'Buy 1', { id: `${m.id}:1`, disabled: locked || max < 1 })}
+        ${btn('buy-metal', 'Buy 10', { id: `${m.id}:10`, disabled: locked || max < 10 })}
+        ${btn('buy-metal', 'Max', { id: `${m.id}:${max}`, disabled: locked || max < 1 }).replace('<button', `<button title="Buy ${max} bars"`)}
+      </div>
+      <div class="trade">
+        ${btn('sell-metal', 'Sell 1', { id: `${m.id}:1`, cls: 'ghost', disabled: owned < 1 })}
+        ${btn('sell-metal', 'Sell 10', { id: `${m.id}:10`, cls: 'ghost', disabled: owned < 10 })}
+        ${btn('sell-metal', 'Sell all', { id: `${m.id}:${owned}`, cls: 'ghost', disabled: owned < 1 })}
+      </div>
+    </div>`;
+  }
+  return html + '</div>';
+}
+
 function rivalsPanel(s, now, ui) {
   const r = rankIndex(s);
   const raider = activeRaider(s);
@@ -313,6 +385,7 @@ function statsPanel(s) {
       ${row('Max nerve', `+${perk(s, 'nerveMax')} (max +${PERK_CAPS.nerveMax})`)}
       ${row('Heat decay', `${heatDecayRate(s).toFixed(2)}× (max ${1 + PERK_CAPS.heatDecay}×)`)}
       ${row('Job heat', `−${pct(perk(s, 'heatReduction'))} (max −${pct(PERK_CAPS.heatReduction)})`)}
+      ${row('Job nerve', `−${pct(perk(s, 'nerveCost'))} (max −${pct(PERK_CAPS.nerveCost)})`)}
     </div>
     <h3>Danger zone</h3>
     ${btn('reset', 'Start a new game', { cls: 'danger' })}
@@ -327,6 +400,7 @@ export function renderPanel(s, now, ui) {
     case 'arsenal': return arsenalPanel(s);
     case 'vault': return vaultPanel(s);
     case 'business': return businessPanel(s);
+    case 'market': return marketPanel(s);
     case 'rivals': return rivalsPanel(s, now, ui);
     case 'stats': return statsPanel(s);
     default: return jobsPanel(s, now, ui);

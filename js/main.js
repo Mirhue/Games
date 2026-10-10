@@ -3,6 +3,7 @@ import { newState, serialize, deserialize, SAVE_KEY } from './state.js';
 import {
   tick, applyOffline, doMission, payBail, bribeCops, buySkill, buyWeapon, upgradeVault,
   deposit, withdraw, buyInvestment, attackRival, resolveRaid, activeRaider, addLog,
+  marketTick, buyMetal, sellMetal,
 } from './engine.js';
 import { renderTopbar, renderTabs, renderPanel, renderLog, awayModal, winModal } from './ui.js';
 
@@ -82,6 +83,7 @@ function catchUp() {
     if (away.summary.notable) showModal(awayModal(away.summary));
   } else {
     state = tick(state, now);
+    state = marketTick(state, now, Math.random);
   }
   if (state.raidIn <= 0 && activeRaider(state)) {
     const raid = resolveRaid(state, Math.random, now);
@@ -130,6 +132,8 @@ const actions = {
   withdraw: () => apply(withdraw(state, vaultAmount(), Date.now())),
   'deposit-all': () => apply(deposit(state, state.cash, Date.now())),
   'withdraw-all': () => apply(withdraw(state, state.vault.balance, Date.now())),
+  'buy-metal': (id) => { const [metal, qty] = id.split(':'); apply(buyMetal(state, metal, Number(qty), Date.now())); },
+  'sell-metal': (id) => { const [metal, qty] = id.split(':'); apply(sellMetal(state, metal, Number(qty), Date.now())); },
   'close-modal': () => $('modal').classList.add('hidden'),
   reset: () => {
     if (!confirm('Start over? Your current gangster will be gone for good.')) return;

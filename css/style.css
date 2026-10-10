@@ -145,3 +145,12 @@ a { color: var(--gold); }
 .checklist { list-style: none; padding: 0; }
 .checklist li::before { content: "✗ "; color: var(--bad); }
 .checklist li.done::before { content: "✓ "; color: var(--good); }
+
+/* Market */
+.spark { width: 100%; height: auto; display: block; }
+.spark-line { fill: none; stroke: var(--gold); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.spark-fair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.spark-dot { fill: var(--gold); stroke: var(--panel); stroke-width: 2; }
+.trade { display: flex; gap: 6px; }
+.trade button { flex: 1; padding: 6px 4px; }
+#log p.news { border-color: var(--gold); }

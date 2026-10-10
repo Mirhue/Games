@@ -134,6 +134,7 @@ On load, the engine compares `now − lastTick` with `elapsed`:
 - Investment income and vault interest are capped at 2 h.
 - If `elapsed > 5 min` and you have cash on hand, one raid check runs.
 - A "While you were away…" summary shows what happened.
+- A hidden browser tab counts as time away, not play. The game pauses its tick while the tab is hidden and catches up with these rules when the player returns. Otherwise a tab left open in the background would bypass the 2-hour cap and be raided all night.
 
 ## 7. UI
 The layout is a single page:

@@ -14,6 +14,7 @@ const $ = (id) => document.getElementById(id);
 const ui = { tab: 'jobs', working: null };
 let state = loadGame();
 let lastSave = 0;
+let pointerHeld = false;
 
 function loadGame() {
   const now = Date.now();
@@ -48,10 +49,12 @@ function showModal(html) {
 function render() {
   const now = Date.now();
   $('topbar').innerHTML = renderTopbar(state, now);
+  // Never swap out buttons while a mouse button or finger is down: the click
+  // would land on a detached element and be lost. Also leave the panel alone
+  // while the player is typing an amount.
+  if (pointerHeld) return;
   const tabs = renderTabs(ui.tab, state);
   if (tabs !== render.tabs) $('tabs').innerHTML = render.tabs = tabs;
-  // Don't re-render the panel while the player is typing an amount.
-  // Only touch the DOM when something changed, so clicks aren't swallowed by a redraw.
   const typing = $('panel').contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   const panel = renderPanel(state, now, ui);
   if (!typing && panel !== render.panel) $('panel').innerHTML = render.panel = panel;
@@ -143,6 +146,13 @@ document.addEventListener('click', (e) => {
   actions[el.dataset.action]?.(el.dataset.id);
 });
 
+document.addEventListener('pointerdown', () => { pointerHeld = true; });
+// The click event fires right after pointerup, so redraw only after it.
+const release = () => { pointerHeld = false; setTimeout(render, 0); };
+document.addEventListener('pointerup', release);
+document.addEventListener('pointercancel', release);
+window.addEventListener('blur', release);
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     saveGame();
@@ -153,9 +163,18 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pagehide', saveGame);
 
-catchUp();
+try {
+  catchUp();
+} catch (err) {
+  console.error('Could not resume the saved game', err);
+  state = newState(Date.now());
+  addLog(state, [{ kind: 'info', text: 'Your old save could not be loaded, so a new game was started.' }], Date.now());
+}
 render();
 setInterval(() => {
+  // A hidden tab is time away, not play: the visibilitychange handler catches
+  // up (with the offline cap) when the player comes back.
+  if (document.hidden) return;
   catchUp();
   if (Date.now() - lastSave >= SAVE_EVERY_MS) saveGame();
   render();

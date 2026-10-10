@@ -5,20 +5,20 @@
 //
 // Styles: balanced, weapons (arms the crew first), business (buys businesses
 // first), nerve (pushes every nerve/heat perk first), rivals (saves nerve for
-// gang fights). "Nothing is overpowered" means no focus style reaches
+// gang fights), market (buys metals in dips, sells in booms). "Nothing is overpowered" means no focus style reaches
 // Godfather much faster than the balanced bot.
 import { newState } from '../js/state.js';
 import {
   tick, doMission, payBail, bribeCops, buySkill, buyWeapon, upgradeVault, deposit, withdraw,
   buyInvestment, attackRival, resolveRaid, activeRaider, rankIndex, successChance, perk,
   inJail, bailCost, bribeCost, investmentPrice, rivalState, fightOdds, netWorth,
-  skillCost, skillUnlocked, weaponPrice, jobNerve,
+  skillCost, skillUnlocked, weaponPrice, jobNerve, marketTick, buyMetal, sellMetal, maxBars,
 } from '../js/engine.js';
-import { MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, ATTACK_NERVE, GODFATHER } from '../js/data.js';
+import { MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, ATTACK_NERVE, GODFATHER, METALS } from '../js/data.js';
 import { mulberry32 } from '../js/rng.js';
 
 const STEP = 1000;
-const STYLES = ['balanced', 'weapons', 'business', 'nerve', 'rivals'];
+const STYLES = ['balanced', 'weapons', 'business', 'nerve', 'rivals', 'market'];
 const hours = Number(process.argv[2] ?? 14);
 const seeds = Number(process.argv[3] ?? 5);
 const only = process.argv[4] ?? 'all';
@@ -96,6 +96,25 @@ function options(s, now, style) {
   return order.flatMap((c) => out[c]);
 }
 
+// Market style: sell metals in a boom, put up to 30% of its money into a dip.
+function trade(s, now) {
+  for (const m of METALS) {
+    const ratio = s.market.prices[m.id] / m.fair;
+    const owned = s.metals[m.id] ?? 0;
+    if (owned && ratio > 1.1) s = sellMetal(s, m.id, owned, now).state;
+    if (ratio < 0.85) {
+      const budget = spendable(s) * 0.3;
+      const qty = Math.floor(budget / (s.market.prices[m.id] * 1.02));
+      if (qty > 0) {
+        s = raise(s, Math.ceil(qty * s.market.prices[m.id] * 1.02) + 1, now);
+        const r = buyMetal(s, m.id, Math.min(qty, maxBars(s, m.id)), now);
+        if (r.ok) s = r.state;
+      }
+    }
+  }
+  return s;
+}
+
 function shop(s, now, style, onBuy) {
   for (let guard = 0; guard < 200; guard++) {
     let bought = null;
@@ -126,6 +145,8 @@ function run(seed, style) {
 
   for (now = STEP; now <= hours * 3_600_000; now += STEP) {
     s = tick(s, now);
+    s = marketTick(s, now, rng);
+    if (style === 'market' && now % 60_000 === 0) s = trade(s, now);
     if (!Number.isInteger(s.cash)) throw new Error(`cash drifted to ${s.cash} at ${now}`);
     if (s.raidIn <= 0 && activeRaider(s)) s = resolveRaid(s, rng, now).state;
     const r = rankIndex(s);

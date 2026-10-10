@@ -1,4 +1,4 @@
-import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS } from './data.js';
+import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS, SKILLS } from './data.js';
 
 export const SAVE_KEY = 'kingpin.save';
 
@@ -42,6 +42,9 @@ export function deserialize(str) {
   return migrate(obj);
 }
 
+// No real player gets near this many copies of a weapon or business.
+const MAX_COUNT = 1000;
+
 // What each skill node cost in v1, by its position in the branch.
 const V1_SKILL_COSTS = [5, 20, 60, 180, 500];
 
@@ -66,11 +69,15 @@ export function migrate(obj) {
     }
     out.skills = {};
   }
-  // v1 stored owned weapons as `true`; v2 stores levels and counts.
-  for (const key of ['skills', 'weapons']) {
+  // v1 stored owned weapons as `true`; v2 stores levels and counts. Counts
+  // are whole numbers up to MAX_COUNT and skill levels stop at their max,
+  // so a damaged save can't make every net-worth calculation crawl.
+  for (const key of ['skills', 'weapons', 'investments']) {
     for (const [id, v] of Object.entries(out[key])) {
-      if (v === true) out[key][id] = 1;
-      else if (!Number.isFinite(v) || v < 1) delete out[key][id];
+      const n = v === true ? 1 : Math.floor(v);
+      const max = key === 'skills' ? (SKILLS.find((k) => k.id === id)?.maxLevel ?? 0) : MAX_COUNT;
+      if (!Number.isFinite(n) || n < 1 || max < 1) delete out[key][id];
+      else out[key][id] = Math.min(n, max);
     }
   }
   for (const key of ['vault', 'stats']) {

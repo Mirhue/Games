@@ -72,3 +72,17 @@ test('migrating a v2 save changes nothing', () => {
   assert.deepEqual(migrate(structuredClone(s)), s);
   assert.equal(SAVE_VERSION, 2);
 });
+
+test('absurd counts and levels in a damaged save are clamped', async () => {
+  const { netWorth } = await import('../js/engine.js');
+  const m = migrate({ version: 2, weapons: { knuckles: 3e7, knife: 2.7, pistol: -4 }, investments: { hustle: 1e9 }, skills: { stealth1: 99, street3: 2 } });
+  assert.equal(m.weapons.knuckles, 1000);
+  assert.equal(m.weapons.knife, 2);
+  assert.equal(m.weapons.pistol, undefined);
+  assert.equal(m.investments.hustle, 1000);
+  assert.equal(m.skills.stealth1, 5);
+  assert.equal(m.skills.street3, 2);
+  const t = Date.now();
+  assert.ok(Number.isFinite(netWorth(m)));
+  assert.ok(Date.now() - t < 100, 'netWorth stays fast');
+});

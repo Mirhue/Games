@@ -1,4 +1,5 @@
-import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS, SKILLS } from './data.js';
+import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS, SKILLS, METALS } from './data.js';
+import { freshMarket } from './market.js';
 
 export const SAVE_KEY = 'kingpin.save';
 
@@ -18,6 +19,9 @@ export function newState(now) {
     vault: { tier: 0, balance: 0 },
     investments: {},
     mastery: {},             // successful runs per job
+    metals: {},              // bars owned per metal
+    metalCost: {},           // dollars paid for the bars still owned
+    market: freshMarket(now),
     rivals: {},
     raidIn: RAID_MIN_MS,     // ms of play until the next raid
     incomePot: 0,
@@ -81,6 +85,16 @@ export function migrate(obj) {
       else out[key][id] = Math.min(n, max);
     }
   }
+  // Repair any missing or broken metal price and its history.
+  for (const m of METALS) {
+    const p = out.market.prices?.[m.id];
+    if (!out.market.prices || typeof out.market.prices !== 'object') out.market.prices = {};
+    if (!Number.isFinite(p) || p <= 0) out.market.prices[m.id] = m.fair;
+    if (!out.market.history || typeof out.market.history !== 'object') out.market.history = {};
+    if (!Array.isArray(out.market.history[m.id])) out.market.history[m.id] = [out.market.prices[m.id]];
+  }
+  if (!Array.isArray(out.market.news)) out.market.news = [];
+  if (!Number.isFinite(out.market.lastStep)) out.market.lastStep = out.lastTick;
   for (const key of ['vault', 'stats']) {
     out[key] = { ...base[key], ...out[key] };
     for (const [k, v] of Object.entries(base[key])) {

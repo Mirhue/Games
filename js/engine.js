@@ -1,3 +1,7 @@
+import { marketTick, metalValue } from './market.js';
+
+export { marketTick, buyMetal, sellMetal, metalBuyPrice, metalSellPrice, metalValue, maxBars } from './market.js';
+
 // Pure game rules. Every action takes the state (plus rng/now where needed),
 // works on a copy and returns { ok, state, events, reason? }.
 import {
@@ -177,7 +181,7 @@ export function netWorth(state) {
   for (const w of WEAPONS) {
     for (let n = 0; n < weaponCount(state, w.id); n++) arsenal += Math.round(w.price * WEAPON_GROWTH ** n);
   }
-  return Math.round(state.cash + state.vault.balance + businesses + arsenal);
+  return Math.round(state.cash + state.vault.balance + businesses + arsenal + metalValue(state));
 }
 
 export const inJail = (state, now) => state.jailUntil > now;
@@ -421,6 +425,8 @@ export function applyOffline(state, now, rng) {
     events.push(good(`While you were away your businesses made ${money(summary.income)}${summary.interest > 0 ? ` and the vault earned ${money(summary.interest)}` : ''}.`));
   }
   addLog(out, events, now);
+  // Metal prices keep moving while you're away (a very long gap re-draws them).
+  out = marketTick(out, now, rng);
   return { state: out, events, summary };
 }
 

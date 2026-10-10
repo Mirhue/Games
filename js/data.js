@@ -212,3 +212,35 @@ export const RIVALS = [
 
 // Win condition: all rivals defeated plus these thresholds.
 export const GODFATHER = { respect: 150_000, netWorth: 500_000_000 };
+
+// Metals market. Prices wander around a fair value (mean reversion with a
+// 2 h half-life), with news that shifts a metal up or down for a while.
+// vol is the typical (stationary) swing of ln(price / fair).
+export const METALS = [
+  { id: 'silver', name: 'Silver', icon: 'metal-bar', fair: 500, vol: 0.25, rank: 0 },
+  { id: 'gold', name: 'Gold', icon: 'gold-bar', fair: 20_000, vol: 0.15, rank: 1 },
+  { id: 'platinum', name: 'Platinum', icon: 'crystal-bars', fair: 250_000, vol: 0.25, rank: 3 },
+  { id: 'palladium', name: 'Palladium', icon: 'ore', fair: 3_000_000, vol: 0.4, rank: 4 },
+];
+export const MARKET = {
+  stepMs: 60_000,
+  halfLifeMs: 2 * 3_600_000,
+  spread: 0.02,                 // buy 2% above, sell 2% below the market price
+  historyLen: 120,              // 2 hours of one-minute prices
+  newsPerStep: 1 / 45,          // about one headline every 45 minutes
+  newsShift: [0.2, 0.5],        // pushes ln(price / fair) by this much
+  newsMs: [20 * 60_000, 60 * 60_000],
+  redrawAfterMs: 24 * 3_600_000,
+  headlines: {
+    up: [
+      'Mine strike: {metal} supply dries up!',
+      'Central banks are hoarding {metal}.',
+      'Rumour: a tech giant needs tons of {metal}.',
+    ],
+    down: [
+      'Huge {metal} find announced, prices tumble.',
+      'Smugglers flood the city with cheap {metal}.',
+      'Investors dump {metal} after a scandal.',
+    ],
+  },
+};

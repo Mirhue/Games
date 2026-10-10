@@ -11,7 +11,7 @@ import {
   BASE_POWER, WEAPON_BONUS_CAP, WEAPON_GROWTH, WEAPONS, VAULTS,
   INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
-  OFFLINE_RAID_AFTER_MS, GODFATHER, GANGS,
+  OFFLINE_RAID_AFTER_MS, GODFATHER, GANGS, ENCOUNTERS, ENCOUNTER_CHANCE, ENCOUNTER_POWER,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -258,6 +258,7 @@ export function doMission(state, missionId, rng, now) {
   if (!m) return refuse(state, 'unknown', 'Unknown job.');
   if (m.tier > rankIndex(state) + 1) return refuse(state, 'locked', `You need to be a ${RANKS[m.tier - 1].name} for that.`);
   if (inJail(state, now)) return refuse(state, 'jail', "You're in jail.");
+  if (state.encounter) return refuse(state, 'encounter', 'Deal with the trouble in front of you first.');
   const cost = jobNerve(state, m);
   if (state.nerve < cost) return refuse(state, 'nerve', 'Not enough nerve. Catch your breath.');
 
@@ -305,9 +306,88 @@ export function doMission(state, missionId, rng, now) {
       events.push(bad(`${m.name}: it went wrong. You got away empty-handed.`));
     }
   }
+  // Trouble on the way back: only after tier 2+ jobs that didn't end in jail.
+  if (!arrested && m.tier >= 2 && rng() < ENCOUNTER_CHANCE) {
+    const e = ENCOUNTERS[Math.min(ENCOUNTERS.length - 1, Math.floor(rng() * ENCOUNTERS.length))];
+    s.encounter = {
+      type: e.id, tier: m.tier, stake: (m.cash[0] + m.cash[1]) / 2, respect: m.respect,
+      power: Math.round(ENCOUNTER_POWER[m.tier - 1] * e.mult),
+    };
+    events.push(bad(`Trouble: ${e.text}`));
+  }
   winCheck(s, events);
   addLog(s, events, now);
   return { ok: true, success, arrested, refunded, state: s, events };
+}
+
+export const encounterType = (state) => ENCOUNTERS.find((e) => e.id === state.encounter?.type) ?? null;
+
+export function encounterOdds(state) {
+  const p = power(state);
+  return clamp(p / (p + state.encounter.power) + perk(state, 'fightOdds'), 0.05, 0.95);
+}
+
+export const fleeOdds = (state) => clamp(encounterType(state).flee + perk(state, 'fleeChance'), 0.05, 0.95);
+
+export const payCost = (state) => Math.round(state.encounter.stake * encounterType(state).pay * (1 - perk(state, 'payCut')));
+
+// What losing an encounter (or failing to flee) does.
+function encounterLoss(s, enc, type, now, events) {
+  const { lose } = type;
+  if (lose.jail) {
+    const seized = Math.round(s.cash * SEIZE_FRACTION);
+    s.cash -= seized;
+    s.jailUntil = now + jailMs(s, enc.tier);
+    s.stats.arrests += 1;
+    events.push(bad(`The ${type.name.toLowerCase()} cuffed you. The cops seized ${money(seized)} and locked you up for ${Math.round(jailMs(s, enc.tier) / 1000)}s.`));
+    return;
+  }
+  const parts = [];
+  if (lose.cashLoss) {
+    const lost = Math.round(s.cash * lose.cashLoss);
+    s.cash -= lost;
+    parts.push(`you lost ${money(lost)}`);
+  }
+  if (lose.heat) {
+    addHeat(s, lose.heat);
+    parts.push(`+${lose.heat} heat`);
+  }
+  events.push(bad(`${type.name}: it went badly, ${parts.join(' and ')}.`));
+}
+
+// Answers a pending street encounter: 'fight', 'flee' or 'pay'.
+export function resolveEncounter(state, choice, rng, now) {
+  const enc = state.encounter;
+  const type = encounterType(state);
+  if (!enc || !type) return refuse(state, 'none', 'Nobody is bothering you.');
+  if (!['fight', 'flee', 'pay'].includes(choice)) return refuse(state, 'choice', 'Fight, flee or pay.');
+  if (choice === 'pay' && state.cash < payCost(state)) return refuse(state, 'cash', `They want ${money(payCost(state))} in cash.`);
+  const s = clone(state);
+  s.encounter = null;
+  const events = [];
+  let won = false;
+  if (choice === 'pay') {
+    const cost = payCost(state);
+    s.cash -= cost;
+    events.push(info(`You paid the ${type.name.toLowerCase()} ${money(cost)} to go away.`));
+  } else if (choice === 'flee') {
+    if (rng() < fleeOdds(state)) events.push(info(`You slipped away from the ${type.name.toLowerCase()}.`));
+    else encounterLoss(s, enc, type, now, events);
+  } else {
+    won = rng() < encounterOdds(state);
+    if (won) {
+      const cash = Math.round(enc.stake * (type.win.cash ?? 0) * (1 + perk(s, 'gangLoot')));
+      const respect = Math.round(enc.respect * type.win.respect);
+      if (type.win.heat) addHeat(s, type.win.heat);
+      events.push(good(`You dealt with the ${type.name.toLowerCase()}. ${cash ? `+${money(cash)}, ` : ''}+${respect} respect${type.win.heat ? `, +${type.win.heat} heat` : ''}.`));
+      reward(s, { cash, respect }, events);
+    } else {
+      encounterLoss(s, enc, type, now, events);
+    }
+  }
+  winCheck(s, events);
+  addLog(s, events, now);
+  return { ok: true, won, state: s, events };
 }
 
 export function upgradeVault(state, now) {

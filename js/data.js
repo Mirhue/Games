@@ -306,6 +306,23 @@ export const RIVALS = [
     raid: 'cash', raidText: 'steal cash on hand' },
 ];
 
+// Street encounters: after a job of tier 2+ that didn't end in an arrest,
+// trouble may find you. Fight (your power vs. power), flee or pay. The stake is
+// the job's average cash; win/lose are per type (cash and respect are shares
+// of the job's stake and respect).
+export const ENCOUNTER_CHANCE = 0.06;
+export const ENCOUNTER_POWER = [15, 40, 120, 300, 700, 1500];   // by job tier
+export const ENCOUNTERS = [
+  { id: 'mugger', icon: 'knife-thrust', name: 'Mugger', text: 'A mugger jumps you in an alley on the way back.',
+    mult: 0.6, flee: 0.6, pay: 0.3, win: { cash: 0.5, respect: 1 }, lose: { cashLoss: 0.1, heat: 5 } },
+  { id: 'crew', icon: 'crossed-swords', name: 'Rival crew', text: 'A rival crew was after the same score. They want your cut.',
+    mult: 1.2, flee: 0.5, pay: 0.5, win: { cash: 1, respect: 2 }, lose: { cashLoss: 0.1, heat: 8 } },
+  { id: 'cop', icon: 'police-badge', name: 'Undercover cop', text: 'An undercover cop recognises you from the job.',
+    mult: 0.8, flee: 0.55, pay: 0.4, win: { respect: 1, heat: 15 }, lose: { jail: true } },
+  { id: 'snitch', icon: 'talk', name: 'Snitch', text: 'A snitch saw the whole job and wants hush money.',
+    mult: 0.3, flee: 0.7, pay: 0.25, win: { respect: 1, heat: 5 }, lose: { heat: 25 } },
+];
+
 // Win condition: all rivals defeated plus these thresholds.
 export const GODFATHER = { respect: 150_000, netWorth: 500_000_000 };
 

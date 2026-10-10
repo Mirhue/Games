@@ -136,10 +136,13 @@ export const VAULTS = [
 export const INVESTMENT_GROWTH = 1.15;
 export const INVESTMENTS = [
   { id: 'hustle', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0 },
-  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 70, rank: 1, perks: { heatDecay: 0.05 } },
+  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 40, rank: 1, perks: { heatDecay: 0.05 } },
+  { id: 'gym', name: 'Boxing gym', basePrice: 4_000, incomePerMin: 45, rank: 1, perks: { nerveMax: 2 } },
   { id: 'bar', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2 },
+  { id: 'pharmacy', name: 'Pharmacy', basePrice: 30_000, incomePerMin: 330, rank: 2, perks: { nerveRegen: 0.03 } },
   { id: 'nightclub', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3 },
-  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 32_000, rank: 4, perks: { heatDecay: 0.15 } },
+  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 18_000, rank: 4, perks: { heatDecay: 0.15 } },
+  { id: 'lawfirm', name: 'Law firm', basePrice: 2_500_000, incomePerMin: 26_000, rank: 4, perks: { heatDecay: 0.1 } },
   { id: 'shipping', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5 },
 ];
 

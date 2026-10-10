@@ -1,16 +1,43 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newState } from '../js/state.js';
-import { investmentPrice, buyInvestment, incomePerMin, tick, applyOffline, netWorth, heatDecayRate, inJail } from '../js/engine.js';
-import { INVESTMENTS, OFFLINE_CAP_MS, RANKS, SKILLS, HEAT_DECAY_MS } from '../js/data.js';
+import { investmentPrice, buyInvestment, incomePerMin, tick, applyOffline, netWorth, heatDecayRate, inJail, nerveMax, nerveRegenMs } from '../js/engine.js';
+import { INVESTMENTS, OFFLINE_CAP_MS, RANKS, SKILLS, HEAT_DECAY_MS, NERVE_MAX_BASE, NERVE_REGEN_MS } from '../js/data.js';
 
 const T0 = 1_000_000;
 const MIN = 60_000;
 const first = INVESTMENTS[0];
 const owning = (counts) => { const s = newState(T0); s.investments = counts; s.respect = RANKS.at(-1).respect; return s; };
 
-test('there are 6 investment tiers', () => {
-  assert.equal(INVESTMENTS.length, 6);
+test('there are 9 businesses, three of them new perk businesses', () => {
+  assert.equal(INVESTMENTS.length, 9);
+  for (const id of ['gym', 'pharmacy', 'lawfirm']) assert.ok(INVESTMENTS.some((i) => i.id === id), id);
+});
+
+const inv = (id) => INVESTMENTS.find((i) => i.id === id);
+
+test('a boxing gym raises max nerve per copy', () => {
+  const s = owning({ gym: 3 });
+  assert.equal(nerveMax(s), NERVE_MAX_BASE + 3 * inv('gym').perks.nerveMax);
+});
+
+test('a pharmacy speeds up nerve regeneration per copy', () => {
+  const s = owning({ pharmacy: 2 });
+  assert.ok(Math.abs(nerveRegenMs(s) - NERVE_REGEN_MS / (1 + 2 * inv('pharmacy').perks.nerveRegen)) < 1e-9);
+});
+
+test('a law firm speeds up heat decay per copy', () => {
+  const s = owning({ lawfirm: 2 });
+  assert.ok(Math.abs(heatDecayRate(s) - (1 + 2 * inv('lawfirm').perks.heatDecay)) < 1e-9);
+});
+
+test('perk businesses earn about half the income per dollar of pure-income ones', () => {
+  const perDollar = (i) => i.incomePerMin / i.basePrice;
+  const pure = INVESTMENTS.filter((i) => !i.perks);
+  const perky = INVESTMENTS.filter((i) => i.perks);
+  const avg = (xs) => xs.reduce((a, i) => a + perDollar(i), 0) / xs.length;
+  const ratio = avg(perky) / avg(pure);
+  assert.ok(ratio > 0.4 && ratio < 0.65, `ratio ${ratio}`);
 });
 
 test('each copy costs 15% more than the last', () => {

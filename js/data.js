@@ -54,6 +54,29 @@ export const MISSIONS = [
   { id: 'mayor', icon: 'capitol', name: 'Bribe the mayor', tier: 6, type: 'brains', nerve: 28, baseChance: 0.25, cash: [550000, 1000000], respect: 2000, sp: 12, heat: 16 },
 ];
 
+// Job mastery: every successful run of a job counts toward its mastery.
+// Each level cuts the job's nerve cost and raises its success chance; a
+// Master job sometimes gives its nerve back on success.
+export const MASTERY = {
+  levels: [
+    { name: 'Novice', at: 0 },
+    { name: 'Skilled', at: 10 },
+    { name: 'Expert', at: 40 },
+    { name: 'Master', at: 120 },
+  ],
+  nerveCut: 0.1,       // per level
+  chance: 0.03,        // per level
+  refundChance: 0.2,   // Master only
+};
+
+// Outgrown jobs: a job 2+ tiers below your top tier gets easier per tier.
+export const OUTGROWN = {
+  max: 3,
+  nerveCut: 0.2,       // per level
+  chance: 0.05,        // per level
+  heatFactor: 0.5,     // heat multiplier per level
+};
+
 // Police
 export const HEAT_MAX = 100;
 export const HEAT_CHANCE_PENALTY = 0.003;   // success chance lost per heat point

@@ -17,6 +17,7 @@ export function newState(now) {
     weapons: {},
     vault: { tier: 0, balance: 0 },
     investments: {},
+    mastery: {},             // successful runs per job
     rivals: {},
     raidIn: RAID_MIN_MS,     // ms of play until the next raid
     incomePot: 0,

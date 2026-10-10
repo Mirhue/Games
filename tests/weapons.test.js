@@ -57,8 +57,9 @@ test('the muscle-job bonus comes from the best weapon type only', () => {
   s = arm(s, WEAPONS[1].id, 1);
   assert.equal(bestWeapon(s).id, WEAPONS[1].id);
   assert.equal(weaponBonus(s), WEAPONS[1].bonus);
-  assert.ok(successChance(s, mission('snatch')) > successChance(newState(T0), mission('snatch')));
-  assert.equal(successChance(s, mission('pickpocket')), successChance(newState(T0), mission('pickpocket')));
+  // Compare with an unarmed player of the same rank (low jobs are outgrown).
+  assert.ok(successChance(s, mission('snatch')) > successChance(loaded(), mission('snatch')));
+  assert.equal(successChance(s, mission('pickpocket')), successChance(loaded(), mission('pickpocket')));
 });
 
 test('quiet weapons cut job heat per copy', () => {
@@ -93,6 +94,6 @@ test('fifty silenced pistols still leave a quarter of the job heat', async () =>
   const s = loaded();
   s.weapons.pistol = 50;
   assert.equal(perk(s, 'heatReduction'), PERK_CAPS.heatReduction);
-  const r = doMission(s, 'pickpocket', () => 0, T0);
-  assert.ok(Math.abs(r.state.heat - mission('pickpocket').heat * (1 - PERK_CAPS.heatReduction)) < 1e-9);
+  const r = doMission(s, 'turf', () => 0, T0);   // a top-tier job, not outgrown
+  assert.ok(Math.abs(r.state.heat - mission('turf').heat * (1 - PERK_CAPS.heatReduction)) < 1e-9);
 });

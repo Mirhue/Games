@@ -1,7 +1,7 @@
 // Pure game rules. Every action takes the state (plus rng/now where needed),
 // works on a copy and returns { ok, state, events, reason? }.
 import {
-  NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
+  NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS, MASTERY, OUTGROWN,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS, SKILL_GROWTH,
   BASE_POWER, WEAPON_BONUS_CAP, WEAPON_GROWTH, WEAPONS, VAULTS,
@@ -133,8 +133,30 @@ export function nerveMax(state) {
   return NERVE_MAX_BASE + perk(state, 'nerveMax');
 }
 
+// Mastery level of a job (index into MASTERY.levels), from its success count.
+export function masteryLevel(state, jobId) {
+  const done = state.mastery[jobId] ?? 0;
+  let level = 0;
+  MASTERY.levels.forEach((l, i) => { if (done >= l.at) level = i; });
+  return level;
+}
+
+// How far a job is below your top unlocked tier, past the first tier (0-3).
+export function outgrownLevel(state, mission) {
+  return clamp(rankIndex(state) - mission.tier, 0, OUTGROWN.max);
+}
+
+// The nerve a job costs you now: mastery and outgrown discounts multiply.
+export function jobNerve(state, mission) {
+  const cut = (1 - MASTERY.nerveCut * masteryLevel(state, mission.id))
+    * (1 - OUTGROWN.nerveCut * outgrownLevel(state, mission));
+  return Math.max(1, Math.round(mission.nerve * cut));
+}
+
 export function successChance(state, mission) {
   const chance = mission.baseChance
+    + MASTERY.chance * masteryLevel(state, mission.id)
+    + OUTGROWN.chance * outgrownLevel(state, mission)
     + perk(state, `${mission.type}Chance`)
     + (mission.type === 'muscle' ? weaponBonus(state) : 0)
     - state.heat * HEAT_CHANCE_PENALTY;
@@ -219,24 +241,36 @@ export function doMission(state, missionId, rng, now) {
   if (!m) return refuse(state, 'unknown', 'Unknown job.');
   if (m.tier > rankIndex(state) + 1) return refuse(state, 'locked', `You need to be a ${RANKS[m.tier - 1].name} for that.`);
   if (inJail(state, now)) return refuse(state, 'jail', "You're in jail.");
-  if (state.nerve < m.nerve) return refuse(state, 'nerve', 'Not enough nerve. Catch your breath.');
+  const cost = jobNerve(state, m);
+  if (state.nerve < cost) return refuse(state, 'nerve', 'Not enough nerve. Catch your breath.');
 
   const s = clone(state);
   const events = [];
-  s.nerve -= m.nerve;
+  const heatFactor = OUTGROWN.heatFactor ** outgrownLevel(state, m);
+  s.nerve -= cost;
   s.stats.missions += 1;
   const success = rng() < successChance(s, m);
   let arrested = false;
+  let refunded = false;
   if (success) {
-    addHeat(s, heatGained(s, m.heat));
+    addHeat(s, heatGained(s, m.heat * heatFactor));
     const base = m.cash[0] + rng() * (m.cash[1] - m.cash[0]);
     const cash = Math.round(base * (1 + perk(s, 'payoutBonus')));
     s.stats.successes += 1;
     events.push(good(`${m.name}: success! +${money(cash)}, +${m.respect} respect, +${m.sp} SP.`));
+    if (masteryLevel(state, m.id) === MASTERY.levels.length - 1 && rng() < MASTERY.refundChance) {
+      refunded = true;
+      s.nerve = Math.min(nerveMax(s), s.nerve + cost);
+      events.push(good('Smooth job! You got your nerve back.'));
+    }
+    const before = masteryLevel(s, m.id);
+    s.mastery[m.id] = (s.mastery[m.id] ?? 0) + 1;
+    const after = masteryLevel(s, m.id);
+    if (after > before) events.push(good(`${m.name}: you are now ${MASTERY.levels[after].name}. It costs less nerve and succeeds more often.`));
     reward(s, { cash, respect: m.respect, sp: m.sp }, events);
   } else {
     arrested = rng() < arrestChance(s, m);
-    addHeat(s, heatGained(s, m.heat / 2));
+    addHeat(s, heatGained(s, (m.heat / 2) * heatFactor));
     if (arrested) {
       const seized = Math.round(s.cash * SEIZE_FRACTION);
       s.cash -= seized;
@@ -249,7 +283,7 @@ export function doMission(state, missionId, rng, now) {
   }
   winCheck(s, events);
   addLog(s, events, now);
-  return { ok: true, success, arrested, state: s, events };
+  return { ok: true, success, arrested, refunded, state: s, events };
 }
 
 export function upgradeVault(state, now) {

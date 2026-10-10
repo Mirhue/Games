@@ -16,6 +16,7 @@ const ui = { tab: 'jobs', working: null };
 let state = loadGame();
 let lastSave = 0;
 let pointerHeld = false;
+let chartHovered = false;   // keep price charts still so their tooltips can be read
 
 function loadGame() {
   const now = Date.now();
@@ -58,7 +59,7 @@ function render() {
   if (tabs !== render.tabs) $('tabs').innerHTML = render.tabs = tabs;
   const typing = $('panel').contains(document.activeElement) && document.activeElement.tagName === 'INPUT';
   const panel = renderPanel(state, now, ui);
-  if (!typing && panel !== render.panel) $('panel').innerHTML = render.panel = panel;
+  if (!typing && !chartHovered && panel !== render.panel) $('panel').innerHTML = render.panel = panel;
   const log = renderLog(state);
   if (log !== render.log) $('log').innerHTML = render.log = log;
 }
@@ -151,6 +152,10 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('pointerdown', () => { pointerHeld = true; });
+document.addEventListener('pointerover', (e) => { chartHovered = !!e.target.closest?.('.spark'); });
+document.addEventListener('pointerout', (e) => {
+  if (e.target.closest?.('.spark') && !e.relatedTarget?.closest?.('.spark')) { chartHovered = false; render(); }
+});
 // The click event fires right after pointerup, so redraw only after it.
 const release = () => { pointerHeld = false; setTimeout(render, 0); };
 document.addEventListener('pointerup', release);

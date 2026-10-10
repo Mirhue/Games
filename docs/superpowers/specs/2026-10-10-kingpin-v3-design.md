@@ -83,5 +83,14 @@ Each metal also has a rank requirement for buying: silver 0, gold 1, platinum 3,
   - net worth includes metals.
 - **Sim:** a new `market` style buys metal when the price is under 85% of fair value and sells above 110%. No style may be more than 15% faster than balanced, and the balanced bot stays at 8–12 h with gaps of 20 min or less.
 
-## 7. Saves
+## 7. Changes after the v3 review
+- **Market edge:** with a 2 h half-life, a buy-low/sell-high trader made 2–5% per hour.
+  - The half-life is now **18 h**.
+  - σ∞ is now silver 0.20, gold 0.15, platinum 0.20, palladium 0.30.
+  - News is now an instant **jump** of ±(0.10 to 0.25) in ln(price/fair) that fades with the mean reversion. The headline stays up for 30–60 min.
+  - Each metal has a holding limit: 5,000 / 500 / 200 / 60 bars.
+  - A test keeps a dip trader below the bank's 1%/h (measured 0.3–0.8%/h).
+- **Fillers:** outgrown jobs now pay respect and SP × 0.5 per outgrown level. Discounted nerve costs round **up**, so a tier-2 job can't cost 1. A test checks that no job beats the top tier on SP per nerve.
+
+## 8. Saves
 New fields (`market`, `metals`, `metalCost`) get defaults through `migrate()`. A missing `market` is initialised at fair prices. `SAVE_VERSION` stays 2.

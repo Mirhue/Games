@@ -17,7 +17,7 @@ There's no build step and no dependencies. The game saves itself in the browser'
 
 - **Jobs:** 6 tiers × 3 jobs (stealth, muscle, brains). They cost **nerve**, which refills 1 point every 6 s. A success pays cash, **respect** and **skill points**. Respect raises your rank, and each rank unlocks the next tier.
 - **Mastery:** every successful run of a job counts toward its mastery: Skilled at 10, Expert at 40 and Master at 120 successes. Each level makes the job cost 10% less nerve and gives +3% success. A Master job has a 20% chance to give its nerve back.
-- **Outgrown jobs:** jobs 2 or more tiers below your top tier get easier, up to 3 levels: −20% nerve, +5% success and half the heat per level. They make cheap fillers. A job always costs at least 1 nerve.
+- **Outgrown jobs:** jobs 2 or more tiers below your top tier get easier, up to 3 levels: −20% nerve, +5% success and half the heat per level. They also pay half the respect and skill points per level, so they're cheap fillers, not a grind. A job always costs at least 1 nerve.
 - **Police:** every job adds **heat**. Heat lowers your success chance and raises your chance of arrest. If you're arrested, the police seize 25% of your cash on hand and you sit in jail for 20 s per tier, or pay bail. You can bribe the cops to wipe your heat.
 - **Skills:** four branches, each with leveled skills. Level 1 of a skill unlocks the next one in its branch, and every skill can keep leveling up to its maximum. Each level costs 1.6× the one before.
   - **Stealth:** better odds on stealth jobs, less heat.
@@ -28,8 +28,9 @@ There's no build step and no dependencies. The game saves itself in the browser'
   - Some weapons have perks: the switchblade and silenced pistol mean less heat from jobs, the shotgun and assault rifle give more max nerve, and the tommy gun gives faster nerve regeneration.
 - **Vault:** 5 tiers, from a shoebox to a Swiss vault. Money in the vault is safe from raids and police seizure. The bank account, offshore account and Swiss vault charge a 1–2% deposit fee but pay 1–2% interest per hour, so the fee is earned back within an hour.
 - **Market:** buy and sell bars of silver, gold, platinum and palladium.
-  - Prices drift around a fair value, with booms and crashes, and news that pushes a metal up or down for a while.
-  - You buy 2% above and sell 2% below the market price, so random trading loses money. Buying dips and selling booms wins.
+  - Prices drift slowly around a fair value, with booms and crashes, and news that makes a metal jump up or down.
+  - You buy 2% above and sell 2% below the market price, so random trading loses money. Buying dips and selling booms makes a little (about 0.3–0.8% per hour), less than the bank's interest.
+  - The dealers limit how many bars you can hold (5,000 silver, 500 gold, 200 platinum, 60 palladium).
   - Bars can't be raided or seized, count toward net worth at their selling price, and prices keep moving while you're away.
 - **Business:** 9 businesses that earn money every minute. You can buy more than one of each, and every copy costs 15% more than the last. They keep earning while you're away, for up to 2 hours.
   - Five have perks but earn about half as much: the laundromat, casino and law firm make heat drop faster (the law firm the most, and it also cuts bail), the boxing gym gives more max nerve, and the pharmacy speeds up nerve regeneration.
@@ -55,8 +56,8 @@ npm run sim       # balance simulation: node tools/sim.js [hours] [seeds] [style
 | `docs/superpowers/` | Design spec and implementation plan |
 
 The simulation runs six bot styles: balanced, weapons-first, businesses-first, nerve/heat-perks-first, a rival rusher, and a market trader that buys dips and sells booms. Current results (5 seeds, active play only):
-- **Balanced:** Thief after about 10 minutes, Kingpin after about 3.3 hours, Godfather after about 8.6 hours.
-- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot, so no single option is overpowered. The rival rush is 9% faster; nerve-perks-first is 14% slower, businesses-first 16% slower, weapons-first 17% slower, and the market trader 21% slower.
+- **Balanced:** Thief after about 10 minutes, Kingpin after about 3.4 hours, Godfather after about 9.1 hours.
+- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot, so no single option is overpowered. The rival rush is 11% faster; the market trader is 5% slower, nerve-perks-first 6% slower, businesses-first 10% slower, and weapons-first 11% slower.
 
 ## Credits
 

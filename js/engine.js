@@ -451,15 +451,17 @@ export function attackRival(state, rivalId, rng, now) {
     rs.hp -= 1;
     const loot = Math.round(r.loot[0] + rng() * (r.loot[1] - r.loot[0]));
     let respect = r.respect;
+    let sp = 0;
     events.push(good(`You hit ${r.name} hard. +${money(loot)}, +${r.respect} respect.`));
     if (rs.hp <= 0) {
       rs.hp = 0;
       rs.defeated = true;
       respect += r.defeatRespect;
-      events.push(good(`${r.boss} is finished. ${r.name} are no more! +${r.defeatRespect} respect.`));
+      sp += r.defeatSp;
+      events.push(good(`${r.boss} is finished. ${r.name} are no more! +${r.defeatRespect} respect, +${r.defeatSp} SP.`));
     }
     s.rivals[rivalId] = rs;
-    reward(s, { cash: loot, respect }, events);
+    reward(s, { cash: loot, respect, sp }, events);
   } else {
     const lost = Math.round(s.cash * FIGHT_LOSS_CASH);
     s.cash -= lost;

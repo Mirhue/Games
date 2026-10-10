@@ -12,7 +12,7 @@ import {
   tick, doMission, payBail, bribeCops, buySkill, buyWeapon, upgradeVault, deposit, withdraw,
   buyInvestment, attackRival, resolveRaid, activeRaider, rankIndex, successChance, perk,
   inJail, bailCost, bribeCost, investmentPrice, rivalState, fightOdds, netWorth,
-  skillCost, skillUnlocked, weaponPrice,
+  skillCost, skillUnlocked, weaponPrice, jobNerve,
 } from '../js/engine.js';
 import { MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, ATTACK_NERVE, GODFATHER } from '../js/data.js';
 import { mulberry32 } from '../js/rng.js';
@@ -29,17 +29,13 @@ const hasNervePerk = (perks = {}) => NERVE_KEYS.some((k) => perks[k]);
 // How many dollars one respect point is worth to the bot right now.
 const respectValue = (s) => 20 * 6 ** rankIndex(s);
 
+// The job with the best value per nerve (mastery and outgrown discounts
+// included). Cheap filler jobs are never better: nerve refills all the time,
+// so spending it on a filler only delays the best job.
 function bestMission(s) {
   const payout = 1 + perk(s, 'payoutBonus');
-  let best = null;
-  let bestScore = -Infinity;
-  for (const m of MISSIONS) {
-    if (m.tier > rankIndex(s) + 1) continue;
-    const c = successChance(s, m);
-    const score = (c * (((m.cash[0] + m.cash[1]) / 2) * payout + m.respect * respectValue(s))) / m.nerve;
-    if (score > bestScore) { bestScore = score; best = m; }
-  }
-  return best;
+  const score = (m) => (successChance(s, m) * (((m.cash[0] + m.cash[1]) / 2) * payout + m.respect * respectValue(s))) / jobNerve(s, m);
+  return MISSIONS.filter((m) => m.tier <= rankIndex(s) + 1).reduce((a, b) => (score(b) > score(a) ? b : a));
 }
 
 const spendable = (s) => s.cash + Math.floor(s.vault.balance);
@@ -156,7 +152,7 @@ function run(seed, style) {
     // The rival rusher saves its nerve for the next fight.
     if (style === 'rivals' && target) continue;
     const m = bestMission(s);
-    if (m && s.nerve >= m.nerve) {
+    if (m && s.nerve >= jobNerve(s, m)) {
       s = doMission(s, m.id, rng, now).state;
       busyUntil = now + STEP;
     }

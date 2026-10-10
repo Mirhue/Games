@@ -1,13 +1,13 @@
 // Renders the game state into the page. Pure string building, no game rules.
 import {
   MISSIONS, RANKS, SKILLS, SKILL_BRANCHES, WEAPONS, VAULTS, INVESTMENTS, RIVALS, GODFATHER,
-  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS,
+  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS, MASTERY, OUTGROWN,
 } from './data.js';
 import {
   rankIndex, rankName, nerveMax, successChance, arrestChance, perk, inJail, bailCost,
   bribeCost, netWorth, bestWeapon, power, defense, investmentPrice, incomePerMin, rivalState,
   fightOdds, raidOdds, activeRaider, skillLevel, skillCost, skillUnlocked, weaponCount,
-  weaponPrice, weaponBonus, nerveRegenMs, heatDecayRate,
+  weaponPrice, weaponBonus, nerveRegenMs, heatDecayRate, masteryLevel, outgrownLevel, jobNerve,
 } from './engine.js';
 
 export const TABS = [
@@ -114,7 +114,8 @@ function jobsPanel(s, now, ui) {
   const r = rankIndex(s);
   const jailed = inJail(s, now);
   const payout = 1 + perk(s, 'payoutBonus');
-  let html = `<h2>Jobs</h2><p class="hint">Every job costs nerve. Success pays cash, respect and skill points. Failure might land you in jail.</p>`;
+  let html = `<h2>Jobs</h2><p class="hint">Every job costs nerve. Success pays cash, respect and skill points. Failure might land you in jail.
+    Repeat a job to master it (cheaper, safer, and a Master sometimes gets the nerve back). Jobs far below your rank are outgrown: quick, cheap fillers.</p>`;
   html += jailBanner(s, now) + heatBanner(s);
   for (let tier = 1; tier <= 6; tier++) {
     const locked = tier > r + 1;
@@ -122,16 +123,27 @@ function jobsPanel(s, now, ui) {
     for (const m of MISSIONS.filter((x) => x.tier === tier)) {
       const c = successChance(s, m);
       const working = ui.working === m.id;
-      const evPerNerve = (c * ((m.cash[0] + m.cash[1]) / 2) * payout) / m.nerve;
+      const cost = jobNerve(s, m);
+      const evPerNerve = (c * ((m.cash[0] + m.cash[1]) / 2) * payout) / cost;
+      const og = outgrownLevel(s, m);
+      const heat = m.heat * OUTGROWN.heatFactor ** og * (1 - perk(s, 'heatReduction'));
+      const ml = masteryLevel(s, m.id);
+      const done = s.mastery[m.id] ?? 0;
+      const next = MASTERY.levels[ml + 1];
+      const mastery = next
+        ? `${MASTERY.levels[ml].name} · ${done}/${next.at}`
+        : `Master · ${pct(MASTERY.refundChance)} nerve back`;
       html += `<div class="card ${locked ? 'locked' : ''} ${working ? 'working' : ''}">
-        ${head(m.icon, `${m.name} <span class="tag ${m.type}">${m.type}</span>`, `var(--${m.type})`)}
+        ${head(m.icon, `${m.name} <span class="tag ${m.type}">${m.type}</span>${og ? ' <span class="tag outgrown">outgrown</span>' : ''}`, `var(--${m.type})`)}
         ${row('Success', pct(c), chanceClass(c))}
         ${row('Payout', `${fmt(m.cash[0] * payout)} – ${fmt(m.cash[1] * payout)}`)}
-        ${row('Nerve', m.nerve)}
+        ${row('Nerve', cost < m.nerve ? `<s class="was">${m.nerve}</s> ${cost}` : cost)}
         ${row('Respect / SP', `+${m.respect} / +${m.sp}`)}
-        ${row('Heat / arrest if failed', `+${m.heat} / ${pct(arrestChance(s, m))}`)}
+        ${row('Heat / arrest if failed', `+${Math.round(heat * 10) / 10} / ${pct(arrestChance(s, m))}`)}
         ${row('Worth per nerve', `≈ ${fmt(evPerNerve)}`)}
-        ${btn('job', 'Do it', { id: m.id, disabled: locked || jailed || s.nerve < m.nerve || !!ui.working })}
+        ${row('Mastery', mastery)}
+        ${next ? bar(done - MASTERY.levels[ml].at, next.at - MASTERY.levels[ml].at, `var(--${m.type})`) : ''}
+        ${btn('job', 'Do it', { id: m.id, disabled: locked || jailed || s.nerve < cost || !!ui.working })}
       </div>`;
     }
     html += '</div>';

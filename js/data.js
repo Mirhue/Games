@@ -200,11 +200,11 @@ export const RAID_STEAL = [0.1, 0.3];
 export const OFFLINE_RAID_AFTER_MS = 5 * 60_000;
 export const RIVALS = [
   { id: 'rats', icon: 'rat', name: 'The Dock Rats', boss: 'Fat Tony', rank: 2, power: 60, hp: 3,
-    loot: [3_000, 8_000], respect: 60, defeatRespect: 800, raidRespect: 20 },
+    loot: [3_000, 8_000], respect: 60, defeatRespect: 800, defeatSp: 100, raidRespect: 20 },
   { id: 'cuervos', icon: 'raven', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
-    loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, raidRespect: 120 },
+    loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, defeatSp: 200, raidRespect: 120 },
   { id: 'volkov', icon: 'bear-head', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 700, hp: 6,
-    loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, raidRespect: 800 },
+    loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, defeatSp: 300, raidRespect: 800 },
 ];
 
 // Win condition: all rivals defeated plus these thresholds.

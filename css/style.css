@@ -96,6 +96,9 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; pa
 .tag.muscle { background: var(--muscle); }
 .tag.brains { background: var(--brains); }
 .tag.street { background: var(--street); }
+.tag.outgrown { background: var(--line); color: var(--muted); }
+.was { color: var(--muted); font-weight: normal; }
+.card .bar { width: 100%; }
 
 .head { display: flex; align-items: center; gap: 10px; }
 .icon {

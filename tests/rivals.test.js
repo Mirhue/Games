@@ -46,6 +46,20 @@ test('a rival at 0 hp is defeated for good with a big respect bonus', () => {
   assert.equal(attackRival(r.state, weakest.id, () => 0, T0).reason, 'defeated');
 });
 
+test('wiping out a gang pays skill points: 100, 200 and 300', () => {
+  assert.deepEqual(RIVALS.map((g) => g.defeatSp), [100, 200, 300]);
+  const s = top();
+  s.rivals[weakest.id] = { hp: 1, defeated: false };
+  const r = attackRival(s, weakest.id, () => 0, T0);
+  assert.equal(r.state.sp, s.sp + weakest.defeatSp);
+  assert.ok(r.events.some((e) => /\+100 SP/.test(e.text)));
+});
+
+test('a won fight that does not finish the gang pays no skill points', () => {
+  const s = top();
+  assert.equal(attackRival(s, weakest.id, () => 0, T0).state.sp, s.sp);
+});
+
 test('a lost fight costs cash on hand and adds heat', () => {
   const s = top();
   s.cash = 1000;

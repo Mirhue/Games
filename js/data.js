@@ -81,3 +81,17 @@ export const SKILLS = [
   node('brains', 4, 'Mastermind', '+4% brains jobs, +5% payouts, +10% income, −10% bail, +10 max nerve', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1, nerveMax: 10 }),
   node('brains', 5, 'Consigliere', '+4% brains jobs, +5% payouts, +10% business income, −10% bail', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1 }),
 ];
+
+// Weapons: only the best owned weapon counts. `bonus` is added to the success
+// chance of muscle jobs; `power` feeds rival fights and raid defense.
+export const BASE_POWER = 10;
+export const WEAPON_BONUS_CAP = 0.2;
+export const WEAPONS = [
+  { id: 'knuckles', name: 'Brass knuckles', price: 150, power: 5, bonus: 0.03, rank: 0 },
+  { id: 'knife', name: 'Switchblade', price: 1_200, power: 12, bonus: 0.06, rank: 1 },
+  { id: 'pistol', name: 'Pistol', price: 9_000, power: 30, bonus: 0.09, rank: 2 },
+  { id: 'shotgun', name: 'Sawed-off shotgun', price: 60_000, power: 70, bonus: 0.12, rank: 3 },
+  { id: 'smg', name: 'Tommy gun', price: 400_000, power: 160, bonus: 0.15, rank: 4 },
+  { id: 'rifle', name: 'Assault rifle', price: 2_500_000, power: 380, bonus: 0.18, rank: 4 },
+  { id: 'rpg', name: 'Rocket launcher', price: 15_000_000, power: 900, bonus: 0.2, rank: 5 },
+];

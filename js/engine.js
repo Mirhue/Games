@@ -4,6 +4,7 @@ import {
   NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
+  BASE_POWER, WEAPON_BONUS_CAP, WEAPONS,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -45,6 +46,38 @@ export function buySkill(state, skillId, now) {
   return { ok: true, state: s, events };
 }
 
+export function bestWeapon(state) {
+  let best = null;
+  for (const w of WEAPONS) if (state.weapons[w.id] && (!best || w.power > best.power)) best = w;
+  return best;
+}
+
+export function weaponBonus(state) {
+  return Math.min(WEAPON_BONUS_CAP, bestWeapon(state)?.bonus ?? 0);
+}
+
+export function power(state) {
+  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + skillEffect(state, 'power');
+}
+
+export function defense(state) {
+  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + skillEffect(state, 'defense');
+}
+
+export function buyWeapon(state, weaponId, now) {
+  const w = WEAPONS.find((x) => x.id === weaponId);
+  if (!w) return refuse(state, 'unknown', 'Unknown weapon.');
+  if (state.weapons[w.id]) return refuse(state, 'owned', 'You already own that.');
+  if (w.rank > rankIndex(state)) return refuse(state, 'locked', `Dealers only sell that to a ${RANKS[w.rank].name}.`);
+  if (state.cash < w.price) return refuse(state, 'cash', `You need ${money(w.price)} in cash.`);
+  const s = clone(state);
+  s.cash -= w.price;
+  s.weapons[w.id] = true;
+  const events = [good(`You bought a ${w.name}.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
 export function nerveMax(state) {
   return NERVE_MAX_BASE + skillEffect(state, 'nerveMax');
 }
@@ -52,6 +85,7 @@ export function nerveMax(state) {
 export function successChance(state, mission) {
   const chance = mission.baseChance
     + skillEffect(state, `${mission.type}Chance`)
+    + (mission.type === 'muscle' ? weaponBonus(state) : 0)
     - state.heat * HEAT_CHANCE_PENALTY;
   return clamp(chance, 0.05, 0.95);
 }

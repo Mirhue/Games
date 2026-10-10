@@ -213,23 +213,24 @@ export const RIVALS = [
 // Win condition: all rivals defeated plus these thresholds.
 export const GODFATHER = { respect: 150_000, netWorth: 500_000_000 };
 
-// Metals market. Prices wander around a fair value (mean reversion with a
-// 2 h half-life), with news that shifts a metal up or down for a while.
-// vol is the typical (stationary) swing of ln(price / fair).
+// Metals market. Prices wander around a fair value (mean reversion with an
+// 18 h half-life) and jump on news. vol is the typical (stationary) swing of
+// ln(price / fair). maxBars is how much the dealers will let you hold, so a
+// patient buy-low player can't park unlimited money for a safe profit.
 export const METALS = [
-  { id: 'silver', name: 'Silver', icon: 'metal-bar', fair: 500, vol: 0.25, rank: 0 },
-  { id: 'gold', name: 'Gold', icon: 'gold-bar', fair: 20_000, vol: 0.15, rank: 1 },
-  { id: 'platinum', name: 'Platinum', icon: 'crystal-bars', fair: 250_000, vol: 0.25, rank: 3 },
-  { id: 'palladium', name: 'Palladium', icon: 'ore', fair: 3_000_000, vol: 0.4, rank: 4 },
+  { id: 'silver', name: 'Silver', icon: 'metal-bar', fair: 500, vol: 0.2, rank: 0, maxBars: 5_000 },
+  { id: 'gold', name: 'Gold', icon: 'gold-bar', fair: 20_000, vol: 0.15, rank: 1, maxBars: 500 },
+  { id: 'platinum', name: 'Platinum', icon: 'crystal-bars', fair: 250_000, vol: 0.2, rank: 3, maxBars: 200 },
+  { id: 'palladium', name: 'Palladium', icon: 'ore', fair: 3_000_000, vol: 0.3, rank: 4, maxBars: 60 },
 ];
 export const MARKET = {
   stepMs: 60_000,
-  halfLifeMs: 2 * 3_600_000,
+  halfLifeMs: 18 * 3_600_000,
   spread: 0.02,                 // buy 2% above, sell 2% below the market price
   historyLen: 120,              // 2 hours of one-minute prices
   newsPerStep: 1 / 45,          // about one headline every 45 minutes
-  newsShift: [0.2, 0.5],        // pushes ln(price / fair) by this much
-  newsMs: [20 * 60_000, 60 * 60_000],
+  newsJump: [0.1, 0.25],        // a headline moves ln(price / fair) by this much at once
+  newsMs: [30 * 60_000, 60 * 60_000],   // how long the headline stays up
   redrawAfterMs: 24 * 3_600_000,
   headlines: {
     up: [

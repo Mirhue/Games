@@ -35,8 +35,9 @@ function maybeNews(s, t, rng, events) {
   const up = rng() < 0.5;
   const list = MARKET.headlines[up ? 'up' : 'down'];
   const text = list[Math.floor(rng() * list.length)].replace('{metal}', m.name.toLowerCase());
-  const shift = (up ? 1 : -1) * between(rng, MARKET.newsShift);
-  s.market.news.push({ metal: m.id, shift, until: t + between(rng, MARKET.newsMs), text });
+  const jump = (up ? 1 : -1) * between(rng, MARKET.newsJump);
+  s.market.prices[m.id] *= Math.exp(jump);
+  s.market.news.push({ metal: m.id, until: t + between(rng, MARKET.newsMs), text });
   events.push({ kind: 'news', text: `Market news: ${text}` });
 }
 
@@ -60,9 +61,8 @@ export function marketTick(state, now, rng) {
       const t = s.market.lastStep + i * MARKET.stepMs;
       maybeNews(s, t, rng, events);
       for (const m of METALS) {
-        const target = s.market.news.find((n) => n.metal === m.id)?.shift ?? 0;
         const x = Math.log(s.market.prices[m.id] / m.fair);
-        const next = target + (x - target) * KEEP + m.vol * SHOCK * normal(rng);
+        const next = x * KEEP + m.vol * SHOCK * normal(rng);
         const p = m.fair * Math.exp(next);
         s.market.prices[m.id] = p;
         const h = s.market.history[m.id];
@@ -78,7 +78,11 @@ export function marketTick(state, now, rng) {
 
 export const metalBuyPrice = (state, id) => state.market.prices[id] * (1 + MARKET.spread);
 export const metalSellPrice = (state, id) => state.market.prices[id] * (1 - MARKET.spread);
-export const maxBars = (state, id) => Math.max(0, Math.floor(state.cash / metalBuyPrice(state, id)));
+// How many more bars you can buy: limited by cash on hand and the holding limit.
+export const maxBars = (state, id) => Math.max(0, Math.min(
+  Math.floor(state.cash / metalBuyPrice(state, id)),
+  metal(id).maxBars - (state.metals[id] ?? 0),
+));
 
 export function metalValue(state) {
   let total = 0;
@@ -91,6 +95,8 @@ export function buyMetal(state, id, qty, now) {
   if (!m) return refuse(state, 'unknown', 'Unknown metal.');
   if (!Number.isInteger(qty) || qty < 1) return refuse(state, 'amount', 'Pick how many bars to buy.');
   if (m.rank > rankIndex(state)) return refuse(state, 'locked', `The ${m.name.toLowerCase()} dealers don't know you yet.`);
+  const owned = state.metals[id] ?? 0;
+  if (owned + qty > m.maxBars) return refuse(state, 'limit', `The dealers won't let you hold more than ${m.maxBars} bars of ${m.name.toLowerCase()}.`);
   const cost = Math.round(qty * metalBuyPrice(state, id));
   if (state.cash < cost) return refuse(state, 'cash', `${qty} bar${qty > 1 ? 's' : ''} of ${m.name.toLowerCase()} cost ${money(cost)}.`);
   const s = structuredClone(state);

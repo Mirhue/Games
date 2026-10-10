@@ -157,3 +157,49 @@ test('net worth counts metals at their selling price, so a crash makes you poore
   s.market.prices.platinum *= 0.5;
   assert.ok(netWorth(s) < before);
 });
+
+// A disciplined dip-buyer (buy under 85% of fair value, sell over 110%) may
+// make some money, but less per hour than the bank account pays.
+test('buying dips and selling booms earns less per hour than bank interest', async () => {
+  const { VAULTS } = await import('../js/data.js');
+  const bank = VAULTS.find((v) => v.name === 'Bank account').interestPerHour;
+  for (const m of METALS) {
+    let s = rich();
+    s.cash = 10 * m.fair;
+    const start = s.cash;
+    const rng = mulberry32(11);
+    const HOURS = 15 * 24;
+    for (let t = 1; t <= HOURS * 60; t++) {
+      s = marketTick(s, T0 + t * MARKET.stepMs, rng);
+      const r = s.market.prices[m.id] / m.fair;
+      const owned = s.metals[m.id] ?? 0;
+      if (owned && r > 1.1) s = sellMetal(s, m.id, owned, T0).state;
+      else if (!owned && r < 0.85 && maxBars(s, m.id) > 0) s = buyMetal(s, m.id, maxBars(s, m.id), T0).state;
+    }
+    const end = s.cash + metalValue(s);
+    const perHour = (end / start) ** (1 / HOURS) - 1;
+    assert.ok(perHour < bank, `${m.id}: ${(perHour * 100).toFixed(2)}% per hour vs bank ${(bank * 100).toFixed(1)}%`);
+  }
+});
+
+test('you can only hold so many bars of each metal', () => {
+  const s = rich();
+  const m = METALS[0];
+  assert.ok(m.maxBars > 0);
+  const r = buyMetal(s, m.id, m.maxBars + 1, T0);
+  assert.equal(r.reason, 'limit');
+  const full = buyMetal(s, m.id, m.maxBars, T0).state;
+  assert.equal(buyMetal(full, m.id, 1, T0).reason, 'limit');
+  assert.equal(maxBars(full, m.id), 0);
+});
+
+test('a news headline makes the price jump at once', () => {
+  let s = newState(T0);
+  // Force a headline on the first step: news roll 0, metal pick 0 (silver), direction up.
+  const script = [0, 0, 0, 0, 0, 0.5, 0.5, 0.5];
+  let i = 0;
+  const rng = () => (i < script.length ? script[i++] : 0.5);
+  s = marketTick(s, T0 + MARKET.stepMs, rng);
+  assert.equal(s.market.news.length, 1);
+  assert.ok(s.market.prices.silver > METALS[0].fair * Math.exp(MARKET.newsJump[0] - 0.05), `silver ${s.market.prices.silver}`);
+});

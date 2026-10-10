@@ -29,29 +29,29 @@ export const RANKS = [
 
 // type: stealth | muscle | brains. cash is [min, max].
 export const MISSIONS = [
-  { id: 'pickpocket', name: 'Pickpocket a tourist', tier: 1, type: 'stealth', nerve: 3, baseChance: 0.85, cash: [8, 20], respect: 1, sp: 1, heat: 2 },
-  { id: 'snatch', name: 'Snatch a purse and run', tier: 1, type: 'muscle', nerve: 4, baseChance: 0.75, cash: [15, 35], respect: 2, sp: 1, heat: 3 },
-  { id: 'bike', name: 'Steal a bike', tier: 1, type: 'brains', nerve: 5, baseChance: 0.70, cash: [25, 55], respect: 2, sp: 1, heat: 3 },
+  { id: 'pickpocket', icon: 'wallet', name: 'Pickpocket a tourist', tier: 1, type: 'stealth', nerve: 3, baseChance: 0.85, cash: [8, 20], respect: 1, sp: 1, heat: 2 },
+  { id: 'snatch', icon: 'shiny-purse', name: 'Snatch a purse and run', tier: 1, type: 'muscle', nerve: 4, baseChance: 0.75, cash: [15, 35], respect: 2, sp: 1, heat: 3 },
+  { id: 'bike', icon: 'dutch-bike', name: 'Steal a bike', tier: 1, type: 'brains', nerve: 5, baseChance: 0.70, cash: [25, 55], respect: 2, sp: 1, heat: 3 },
 
-  { id: 'car_breakin', name: 'Break into a parked car', tier: 2, type: 'stealth', nerve: 6, baseChance: 0.75, cash: [90, 200], respect: 5, sp: 2, heat: 4 },
-  { id: 'mugging', name: 'Mug a businessman', tier: 2, type: 'muscle', nerve: 7, baseChance: 0.68, cash: [120, 260], respect: 7, sp: 2, heat: 5 },
-  { id: 'burglary', name: 'Burglarize a house', tier: 2, type: 'brains', nerve: 8, baseChance: 0.62, cash: [160, 340], respect: 8, sp: 2, heat: 6 },
+  { id: 'car_breakin', icon: 'car-key', name: 'Break into a parked car', tier: 2, type: 'stealth', nerve: 6, baseChance: 0.75, cash: [90, 200], respect: 5, sp: 2, heat: 4 },
+  { id: 'mugging', icon: 'robber', name: 'Mug a businessman', tier: 2, type: 'muscle', nerve: 7, baseChance: 0.68, cash: [120, 260], respect: 7, sp: 2, heat: 5 },
+  { id: 'burglary', icon: 'house-keys', name: 'Burglarize a house', tier: 2, type: 'brains', nerve: 8, baseChance: 0.62, cash: [160, 340], respect: 8, sp: 2, heat: 6 },
 
-  { id: 'steal_car', name: 'Steal a sports car', tier: 3, type: 'stealth', nerve: 10, baseChance: 0.65, cash: [900, 1800], respect: 22, sp: 3, heat: 6 },
-  { id: 'corner_store', name: 'Rob a corner store', tier: 3, type: 'muscle', nerve: 11, baseChance: 0.60, cash: [1100, 2200], respect: 28, sp: 3, heat: 8 },
-  { id: 'racket', name: 'Run a protection racket', tier: 3, type: 'brains', nerve: 12, baseChance: 0.55, cash: [1300, 2600], respect: 30, sp: 3, heat: 7 },
+  { id: 'steal_car', icon: 'race-car', name: 'Steal a sports car', tier: 3, type: 'stealth', nerve: 10, baseChance: 0.65, cash: [900, 1800], respect: 22, sp: 3, heat: 6 },
+  { id: 'corner_store', icon: 'shop', name: 'Rob a corner store', tier: 3, type: 'muscle', nerve: 11, baseChance: 0.60, cash: [1100, 2200], respect: 28, sp: 3, heat: 8 },
+  { id: 'racket', icon: 'pay-money', name: 'Run a protection racket', tier: 3, type: 'brains', nerve: 12, baseChance: 0.55, cash: [1300, 2600], respect: 30, sp: 3, heat: 7 },
 
-  { id: 'jewelry', name: 'Jewelry store heist', tier: 4, type: 'stealth', nerve: 14, baseChance: 0.55, cash: [7000, 14000], respect: 90, sp: 5, heat: 9 },
-  { id: 'hijack', name: 'Hijack a cargo truck', tier: 4, type: 'muscle', nerve: 15, baseChance: 0.50, cash: [8500, 16000], respect: 110, sp: 5, heat: 11 },
-  { id: 'extortion', name: 'Extort a city councillor', tier: 4, type: 'brains', nerve: 16, baseChance: 0.45, cash: [10000, 19000], respect: 120, sp: 5, heat: 10 },
+  { id: 'jewelry', icon: 'diamond-ring', name: 'Jewelry store heist', tier: 4, type: 'stealth', nerve: 14, baseChance: 0.55, cash: [7000, 14000], respect: 90, sp: 5, heat: 9 },
+  { id: 'hijack', icon: 'truck', name: 'Hijack a cargo truck', tier: 4, type: 'muscle', nerve: 15, baseChance: 0.50, cash: [8500, 16000], respect: 110, sp: 5, heat: 11 },
+  { id: 'extortion', icon: 'briefcase', name: 'Extort a city councillor', tier: 4, type: 'brains', nerve: 16, baseChance: 0.45, cash: [10000, 19000], respect: 120, sp: 5, heat: 10 },
 
-  { id: 'casino_vault', name: 'Crack the casino vault', tier: 5, type: 'stealth', nerve: 18, baseChance: 0.45, cash: [55000, 105000], respect: 380, sp: 8, heat: 12 },
-  { id: 'bank', name: 'Rob the central bank', tier: 5, type: 'muscle', nerve: 20, baseChance: 0.40, cash: [65000, 125000], respect: 450, sp: 8, heat: 15 },
-  { id: 'arms_deal', name: 'Broker an arms deal', tier: 5, type: 'brains', nerve: 22, baseChance: 0.35, cash: [80000, 150000], respect: 500, sp: 8, heat: 13 },
+  { id: 'casino_vault', icon: 'open-treasure-chest', name: 'Crack the casino vault', tier: 5, type: 'stealth', nerve: 18, baseChance: 0.45, cash: [55000, 105000], respect: 380, sp: 8, heat: 12 },
+  { id: 'bank', icon: 'bank', name: 'Rob the central bank', tier: 5, type: 'muscle', nerve: 20, baseChance: 0.40, cash: [65000, 125000], respect: 450, sp: 8, heat: 15 },
+  { id: 'arms_deal', icon: 'cargo-crate', name: 'Broker an arms deal', tier: 5, type: 'brains', nerve: 22, baseChance: 0.35, cash: [80000, 150000], respect: 500, sp: 8, heat: 13 },
 
-  { id: 'reserve', name: 'Federal reserve heist', tier: 6, type: 'stealth', nerve: 24, baseChance: 0.35, cash: [400000, 750000], respect: 1500, sp: 12, heat: 15 },
-  { id: 'turf', name: 'Take over rival turf', tier: 6, type: 'muscle', nerve: 26, baseChance: 0.30, cash: [450000, 850000], respect: 1800, sp: 12, heat: 18 },
-  { id: 'mayor', name: 'Bribe the mayor', tier: 6, type: 'brains', nerve: 28, baseChance: 0.25, cash: [550000, 1000000], respect: 2000, sp: 12, heat: 16 },
+  { id: 'reserve', icon: 'money-stack', name: 'Federal reserve heist', tier: 6, type: 'stealth', nerve: 24, baseChance: 0.35, cash: [400000, 750000], respect: 1500, sp: 12, heat: 15 },
+  { id: 'turf', icon: 'flag-objective', name: 'Take over rival turf', tier: 6, type: 'muscle', nerve: 26, baseChance: 0.30, cash: [450000, 850000], respect: 1800, sp: 12, heat: 18 },
+  { id: 'mayor', icon: 'capitol', name: 'Bribe the mayor', tier: 6, type: 'brains', nerve: 28, baseChance: 0.25, cash: [550000, 1000000], respect: 2000, sp: 12, heat: 16 },
 ];
 
 // Police
@@ -71,8 +71,28 @@ export const BRIBE_PER_HEAT = [4, 25, 150, 900, 5000, 25000]; // by rank
 export const SKILL_GROWTH = 1.6;
 const MAX_LEVELS = [5, 5, 5, 3, 1];
 const BASE_COSTS = [3, 10, 30, 100, 350];
+const SKILL_ICONS = {
+  stealth1: 'robber-hand',
+  stealth2: 'hooded-figure',
+  stealth3: 'lockpicks',
+  stealth4: 'hooded-assassin',
+  stealth5: 'robber-mask',
+  muscle1: 'fist',
+  muscle2: 'muscle-up',
+  muscle3: 'jason-mask',
+  muscle4: 'mailed-fist',
+  muscle5: 'thor-fist',
+  brains1: 'brain',
+  brains2: 'stopwatch',
+  brains3: 'poker-hand',
+  brains4: 'hive-mind',
+  brains5: 'scales',
+  street1: 'sprint',
+  street2: 'snowflake-1',
+  street3: 'lungs',
+};
 const node = (branch, idx, name, effects, { maxLevel = MAX_LEVELS[idx - 1], baseCost = BASE_COSTS[idx - 1] } = {}) =>
-  ({ id: `${branch}${idx}`, branch, idx, name, maxLevel, baseCost, effects });
+  ({ id: `${branch}${idx}`, icon: SKILL_ICONS[`${branch}${idx}`], branch, idx, name, maxLevel, baseCost, effects });
 export const SKILL_BRANCHES = [
   { id: 'stealth', name: 'Stealth' },
   { id: 'muscle', name: 'Muscle' },
@@ -111,13 +131,13 @@ export const BASE_POWER = 10;
 export const WEAPON_BONUS_CAP = 0.2;
 export const WEAPON_GROWTH = 1.25;
 export const WEAPONS = [
-  { id: 'knuckles', name: 'Brass knuckles', price: 150, power: 5, bonus: 0.03, rank: 0 },
-  { id: 'knife', name: 'Switchblade', price: 1_200, power: 12, bonus: 0.06, rank: 1, perks: { heatReduction: 0.02 } },
-  { id: 'pistol', name: 'Silenced pistol', price: 9_000, power: 30, bonus: 0.09, rank: 2, perks: { heatReduction: 0.03 } },
-  { id: 'shotgun', name: 'Sawed-off shotgun', price: 60_000, power: 70, bonus: 0.12, rank: 3, perks: { nerveMax: 3 } },
-  { id: 'smg', name: 'Tommy gun', price: 400_000, power: 160, bonus: 0.15, rank: 4, perks: { nerveRegen: 0.04 } },
-  { id: 'rifle', name: 'Assault rifle', price: 2_500_000, power: 380, bonus: 0.18, rank: 4, perks: { nerveMax: 5 } },
-  { id: 'rpg', name: 'Rocket launcher', price: 15_000_000, power: 900, bonus: 0.2, rank: 5 },
+  { id: 'knuckles', icon: 'brass-knuckles', name: 'Brass knuckles', price: 150, power: 5, bonus: 0.03, rank: 0 },
+  { id: 'knife', icon: 'switchblade', name: 'Switchblade', price: 1_200, power: 12, bonus: 0.06, rank: 1, perks: { heatReduction: 0.02 } },
+  { id: 'pistol', icon: 'pistol-gun', name: 'Silenced pistol', price: 9_000, power: 30, bonus: 0.09, rank: 2, perks: { heatReduction: 0.03 } },
+  { id: 'shotgun', icon: 'sawed-off-shotgun', name: 'Sawed-off shotgun', price: 60_000, power: 70, bonus: 0.12, rank: 3, perks: { nerveMax: 3 } },
+  { id: 'smg', icon: 'machine-gun', name: 'Tommy gun', price: 400_000, power: 160, bonus: 0.15, rank: 4, perks: { nerveRegen: 0.04 } },
+  { id: 'rifle', icon: 'ak47', name: 'Assault rifle', price: 2_500_000, power: 380, bonus: 0.18, rank: 4, perks: { nerveMax: 5 } },
+  { id: 'rpg', icon: 'missile-launcher', name: 'Rocket launcher', price: 15_000_000, power: 900, bonus: 0.2, rank: 5 },
 ];
 
 // Vault tiers. Index 0 means no vault. Money in the vault is safe from raids
@@ -135,15 +155,15 @@ export const VAULTS = [
 // perks are per copy (see PERK_CAPS), e.g. heatDecay: laundering money.
 export const INVESTMENT_GROWTH = 1.15;
 export const INVESTMENTS = [
-  { id: 'hustle', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0 },
-  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 40, rank: 1, perks: { heatDecay: 0.05 } },
-  { id: 'gym', name: 'Boxing gym', basePrice: 4_000, incomePerMin: 45, rank: 1, perks: { nerveMax: 2 } },
-  { id: 'bar', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2 },
-  { id: 'pharmacy', name: 'Pharmacy', basePrice: 30_000, incomePerMin: 330, rank: 2, perks: { nerveRegen: 0.03 } },
-  { id: 'nightclub', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3 },
-  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 18_000, rank: 4, perks: { heatDecay: 0.15 } },
-  { id: 'lawfirm', name: 'Law firm', basePrice: 2_500_000, incomePerMin: 26_000, rank: 4, perks: { heatDecay: 0.1 } },
-  { id: 'shipping', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5 },
+  { id: 'hustle', icon: 'hoodie', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0 },
+  { id: 'laundromat', icon: 'washing-machine', name: 'Laundromat', basePrice: 3_000, incomePerMin: 40, rank: 1, perks: { heatDecay: 0.05 } },
+  { id: 'gym', icon: 'punching-bag', name: 'Boxing gym', basePrice: 4_000, incomePerMin: 45, rank: 1, perks: { nerveMax: 2 } },
+  { id: 'bar', icon: 'beer-bottle', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2 },
+  { id: 'pharmacy', icon: 'medicine-pills', name: 'Pharmacy', basePrice: 30_000, incomePerMin: 330, rank: 2, perks: { nerveRegen: 0.03 } },
+  { id: 'nightclub', icon: 'martini', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3 },
+  { id: 'casino', icon: 'slot-machine', name: 'Casino', basePrice: 1_600_000, incomePerMin: 18_000, rank: 4, perks: { heatDecay: 0.15 } },
+  { id: 'lawfirm', icon: 'gavel', name: 'Law firm', basePrice: 2_500_000, incomePerMin: 26_000, rank: 4, perks: { heatDecay: 0.1 } },
+  { id: 'shipping', icon: 'cargo-ship', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5 },
 ];
 
 // Rival gangs. Attack them to wear down their hp; the strongest undefeated
@@ -156,11 +176,11 @@ export const RAID_MAX_MS = 20 * 60_000;
 export const RAID_STEAL = [0.1, 0.3];
 export const OFFLINE_RAID_AFTER_MS = 5 * 60_000;
 export const RIVALS = [
-  { id: 'rats', name: 'The Dock Rats', boss: 'Fat Tony', rank: 2, power: 60, hp: 3,
+  { id: 'rats', icon: 'rat', name: 'The Dock Rats', boss: 'Fat Tony', rank: 2, power: 60, hp: 3,
     loot: [3_000, 8_000], respect: 60, defeatRespect: 800, raidRespect: 20 },
-  { id: 'cuervos', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
+  { id: 'cuervos', icon: 'raven', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
     loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, raidRespect: 120 },
-  { id: 'volkov', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 700, hp: 6,
+  { id: 'volkov', icon: 'bear-head', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 700, hp: 6,
     loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, raidRespect: 800 },
 ];
 

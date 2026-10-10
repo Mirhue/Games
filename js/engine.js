@@ -4,7 +4,7 @@ import {
   NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
-  BASE_POWER, WEAPON_BONUS_CAP, WEAPONS,
+  BASE_POWER, WEAPON_BONUS_CAP, WEAPONS, VAULTS,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -192,6 +192,56 @@ export function doMission(state, missionId, rng, now) {
   return { ok: true, success, arrested, state: s, events };
 }
 
+export function upgradeVault(state, now) {
+  const next = VAULTS[state.vault.tier + 1];
+  if (!next) return refuse(state, 'max', 'You already have the best vault money can buy.');
+  if (state.cash < next.price) return refuse(state, 'cash', `A ${next.name} costs ${money(next.price)}.`);
+  const s = clone(state);
+  s.cash -= next.price;
+  s.vault.tier += 1;
+  const events = [good(`You upgraded to a ${next.name}.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
+export function deposit(state, amount, now) {
+  const v = VAULTS[state.vault.tier];
+  if (state.vault.tier === 0) return refuse(state, 'novault', 'You need a place to stash your money first.');
+  if (!(amount > 0) || state.cash < 1) return refuse(state, 'amount', 'Nothing to deposit.');
+  const space = v.capacity - state.vault.balance;
+  if (space < 1) return refuse(state, 'full', `Your ${v.name} is full.`);
+  // Pay in cash, the vault receives cash × (1 − fee), never more than the free space.
+  const paid = Math.floor(Math.min(amount, state.cash, space / (1 - v.fee)));
+  if (paid < 1) return refuse(state, 'amount', 'Nothing to deposit.');
+  const credited = Math.min(space, Math.floor(paid * (1 - v.fee)));
+  const s = clone(state);
+  s.cash -= paid;
+  s.vault.balance += credited;
+  const fee = paid - credited;
+  const events = [info(`Deposited ${money(credited)}${fee > 0 ? ` (fee ${money(fee)})` : ''}.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
+export function withdraw(state, amount, now) {
+  if (!(amount > 0)) return refuse(state, 'amount', 'Nothing to withdraw.');
+  if (state.vault.balance < 1) return refuse(state, 'empty', 'Your vault is empty.');
+  const taken = Math.floor(Math.min(amount, state.vault.balance));
+  const s = clone(state);
+  s.vault.balance -= taken;
+  s.cash += taken;
+  const events = [info(`Withdrew ${money(taken)}.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
+function accrueInterest(s, ms) {
+  const v = VAULTS[s.vault.tier];
+  if (!v.interestPerHour || s.vault.balance <= 0) return;
+  const grown = s.vault.balance * (1 + v.interestPerHour * ms / 3_600_000);
+  s.vault.balance = Math.min(v.capacity, grown);
+}
+
 // Advances time-based systems. Returns a new state.
 export function tick(state, now) {
   const elapsed = now - state.lastTick;
@@ -200,5 +250,6 @@ export function tick(state, now) {
   s.lastTick = now;
   s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / NERVE_REGEN_MS);
   s.heat = Math.max(0, s.heat - elapsed / HEAT_DECAY_MS);
+  accrueInterest(s, elapsed);
   return s;
 }

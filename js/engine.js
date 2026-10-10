@@ -3,7 +3,7 @@
 import {
   NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
-  JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT,
+  JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -24,12 +24,36 @@ export function rankName(state) {
   return state.won ? 'Godfather' : RANKS[rankIndex(state)].name;
 }
 
+export function skillEffect(state, key) {
+  let total = 0;
+  for (const k of SKILLS) if (state.skills[k.id]) total += k.effects[key] ?? 0;
+  return total;
+}
+
+export function buySkill(state, skillId, now) {
+  const k = SKILLS.find((x) => x.id === skillId);
+  if (!k) return refuse(state, 'unknown', 'Unknown skill.');
+  if (state.skills[k.id]) return refuse(state, 'owned', 'You already know that.');
+  const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
+  if (prev && !state.skills[prev.id]) return refuse(state, 'order', `Learn ${prev.name} first.`);
+  if (state.sp < k.cost) return refuse(state, 'sp', `You need ${k.cost} SP.`);
+  const s = clone(state);
+  s.sp -= k.cost;
+  s.skills[k.id] = true;
+  const events = [good(`You learned ${k.name}.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
 export function nerveMax(state) {
-  return NERVE_MAX_BASE;
+  return NERVE_MAX_BASE + skillEffect(state, 'nerveMax');
 }
 
 export function successChance(state, mission) {
-  return clamp(mission.baseChance - state.heat * HEAT_CHANCE_PENALTY, 0.05, 0.95);
+  const chance = mission.baseChance
+    + skillEffect(state, `${mission.type}Chance`)
+    - state.heat * HEAT_CHANCE_PENALTY;
+  return clamp(chance, 0.05, 0.95);
 }
 
 export function arrestChance(state, mission) {
@@ -42,12 +66,15 @@ export function netWorth(state) {
 
 export const inJail = (state, now) => state.jailUntil > now;
 
+const heatGained = (s, amount) => amount * (1 - Math.min(0.9, skillEffect(s, 'heatReduction')));
+
 function addHeat(s, amount) {
   s.heat = clamp(s.heat + amount, 0, HEAT_MAX);
 }
 
 export function bailCost(state) {
-  return Math.round(Math.max(BAIL_MIN, netWorth(state) * BAIL_NET_WORTH_FRACTION));
+  const discount = Math.min(0.9, skillEffect(state, 'bailDiscount'));
+  return Math.round(Math.max(BAIL_MIN, netWorth(state) * BAIL_NET_WORTH_FRACTION) * (1 - discount));
 }
 
 export function payBail(state, now) {
@@ -108,14 +135,15 @@ export function doMission(state, missionId, rng, now) {
   const success = rng() < successChance(s, m);
   let arrested = false;
   if (success) {
-    addHeat(s, m.heat);
-    const cash = Math.round(m.cash[0] + rng() * (m.cash[1] - m.cash[0]));
+    addHeat(s, heatGained(s, m.heat));
+    const base = m.cash[0] + rng() * (m.cash[1] - m.cash[0]);
+    const cash = Math.round(base * (1 + skillEffect(s, 'payoutBonus')));
     s.stats.successes += 1;
     events.push(good(`${m.name}: success! +${money(cash)}, +${m.respect} respect, +${m.sp} SP.`));
     reward(s, { cash, respect: m.respect, sp: m.sp }, events);
   } else {
     arrested = rng() < arrestChance(s, m);
-    addHeat(s, m.heat / 2);
+    addHeat(s, heatGained(s, m.heat / 2));
     if (arrested) {
       const seized = Math.round(s.cash * SEIZE_FRACTION);
       s.cash -= seized;

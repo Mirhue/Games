@@ -54,3 +54,30 @@ export const SEIZE_FRACTION = 0.25;          // share of cash on hand taken on a
 export const BAIL_MIN = 100;
 export const BAIL_NET_WORTH_FRACTION = 0.1;
 export const BRIBE_PER_HEAT = [4, 25, 150, 900, 5000, 25000]; // by rank
+
+// Skill tree: 3 branches × 5 nodes, bought in order with SP.
+// Effect keys: stealthChance, muscleChance, brainsChance (added to success chance),
+// heatReduction, payoutBonus, incomeBonus, bailDiscount (fractions),
+// nerveMax, power, defense (flat).
+export const SKILL_COSTS = [5, 15, 40, 100, 250];
+const node = (branch, idx, name, desc, effects) =>
+  ({ id: `${branch}${idx}`, branch, idx, name, desc, cost: SKILL_COSTS[idx - 1], effects });
+export const SKILLS = [
+  node('stealth', 1, 'Light Fingers', '+4% stealth jobs, −8% heat gained', { stealthChance: 0.04, heatReduction: 0.08 }),
+  node('stealth', 2, 'Shadow Walker', '+4% stealth jobs, −8% heat gained', { stealthChance: 0.04, heatReduction: 0.08 }),
+  node('stealth', 3, 'Lockpicker', '+4% stealth jobs, −8% heat gained', { stealthChance: 0.04, heatReduction: 0.08 }),
+  node('stealth', 4, 'Ghost', '+4% stealth jobs, −8% heat gained', { stealthChance: 0.04, heatReduction: 0.08 }),
+  node('stealth', 5, 'Phantom', '+4% stealth jobs, −8% heat gained', { stealthChance: 0.04, heatReduction: 0.08 }),
+
+  node('muscle', 1, 'Street Brawler', '+4% muscle jobs, +5 power & defense', { muscleChance: 0.04, power: 5, defense: 5 }),
+  node('muscle', 2, 'Tough Skin', '+4% muscle jobs, +15 power & defense', { muscleChance: 0.04, power: 15, defense: 15 }),
+  node('muscle', 3, 'Intimidator', '+4% muscle jobs, +40 power & defense', { muscleChance: 0.04, power: 40, defense: 40 }),
+  node('muscle', 4, 'Iron Fist', '+4% muscle jobs, +100 power & defense', { muscleChance: 0.04, power: 100, defense: 100 }),
+  node('muscle', 5, 'Untouchable', '+4% muscle jobs, +250 power & defense', { muscleChance: 0.04, power: 250, defense: 250 }),
+
+  node('brains', 1, 'Street Smarts', '+4% brains jobs, +5% payouts, +10% business income, −10% bail', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1 }),
+  node('brains', 2, 'Planner', '+4% brains jobs, +5% payouts, +10% income, −10% bail, +10 max nerve', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1, nerveMax: 10 }),
+  node('brains', 3, 'Fixer', '+4% brains jobs, +5% payouts, +10% business income, −10% bail', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1 }),
+  node('brains', 4, 'Mastermind', '+4% brains jobs, +5% payouts, +10% income, −10% bail, +10 max nerve', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1, nerveMax: 10 }),
+  node('brains', 5, 'Consigliere', '+4% brains jobs, +5% payouts, +10% business income, −10% bail', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.1 }),
+];

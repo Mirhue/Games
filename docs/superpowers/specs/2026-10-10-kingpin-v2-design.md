@@ -24,7 +24,8 @@ The user chose: game-icons.net icons, and the "arm your crew" model (copies stac
 - Content entries get an `icon` field.
 - The UI draws icons as a CSS mask, so they take a theme colour:
   - missions use their type colour (stealth / muscle / brains);
-  - weapons, skills, businesses and rivals use gold.
+  - weapons, skills and businesses use gold;
+  - rival gangs use the danger red, because they are the enemy.
 - Credits go in the README and the Stats tab: "Icons by Lorc, Delapouite, Skoll, John Colburn, DarkZaitzev, Caro Asercion and contributors — game-icons.net, CC BY 3.0".
 
 ## 3. Unified perks

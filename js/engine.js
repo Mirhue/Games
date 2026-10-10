@@ -42,7 +42,6 @@ export const capped = (key, value) => Math.min(PERK_CAPS[key] ?? Infinity, value
 // The perk value the rules use: the sum, limited by its cap.
 export const perk = (state, key) => capped(key, effect(state, key));
 
-export const skillEffect = perk;  // v1 name, kept for callers
 
 export function nerveRegenMs(state) {
   return NERVE_REGEN_MS / (1 + perk(state, 'nerveRegen'));

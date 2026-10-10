@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newState } from '../js/state.js';
-import { investmentPrice, buyInvestment, incomePerMin, tick, applyOffline, netWorth, heatDecayRate, inJail, nerveMax, nerveRegenMs } from '../js/engine.js';
+import { investmentPrice, buyInvestment, incomePerMin, tick, applyOffline, netWorth, heatDecayRate, inJail, nerveMax, nerveRegenMs, bailCost } from '../js/engine.js';
 import { INVESTMENTS, OFFLINE_CAP_MS, RANKS, SKILLS, HEAT_DECAY_MS, NERVE_MAX_BASE, NERVE_REGEN_MS } from '../js/data.js';
 
 const T0 = 1_000_000;
@@ -29,6 +29,17 @@ test('a pharmacy speeds up nerve regeneration per copy', () => {
 test('a law firm speeds up heat decay per copy', () => {
   const s = owning({ lawfirm: 2 });
   assert.ok(Math.abs(heatDecayRate(s) - (1 + 2 * inv('lawfirm').perks.heatDecay)) < 1e-9);
+});
+
+test('a law firm is a stronger heat source than a laundromat and also cuts bail', () => {
+  assert.ok(inv('lawfirm').perks.heatDecay >= 0.25);
+  assert.ok(inv('lawfirm').perks.heatDecay > 4 * inv('laundromat').perks.heatDecay);
+  const s = owning({});
+  s.cash = 1_000_000;
+  const full = bailCost(s);
+  s.investments.lawfirm = 2;
+  s.cash = 1_000_000 - (netWorth(s) - 1_000_000);   // same net worth as before
+  assert.ok(Math.abs(bailCost(s) - Math.round(full * (1 - 2 * inv('lawfirm').perks.bailDiscount))) <= 1);
 });
 
 test('perk businesses earn about half the income per dollar of pure-income ones', () => {

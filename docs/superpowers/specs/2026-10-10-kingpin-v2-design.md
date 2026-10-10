@@ -79,7 +79,7 @@ Three businesses are added:
 |---|---|---|
 | Boxing gym | 1 | nerveMax +2 |
 | Pharmacy | 2 | nerveRegen +3% |
-| Law firm | 4 | heatDecay +10% |
+| Law firm | 4 | heatDecay +25%, bailDiscount 5% |
 
 - The laundromat and casino keep their heatDecay perk.
 - Perk businesses earn about half the income per dollar of a pure-income business.

@@ -26,7 +26,7 @@ There's no build step and no dependencies. The game saves itself in the browser'
   - Some weapons have perks: the switchblade and silenced pistol mean less heat from jobs, the shotgun and assault rifle give more max nerve, and the tommy gun gives faster nerve regeneration.
 - **Vault:** 5 tiers, from a shoebox to a Swiss vault. Money in the vault is safe from raids and police seizure. Higher tiers charge a deposit fee but pay interest.
 - **Business:** 9 businesses that earn money every minute. You can buy more than one of each, and every copy costs 15% more than the last. They keep earning while you're away, for up to 2 hours.
-  - Five have perks but earn about half as much: the laundromat, casino and law firm make heat drop faster, the boxing gym gives more max nerve, and the pharmacy speeds up nerve regeneration.
+  - Five have perks but earn about half as much: the laundromat, casino and law firm make heat drop faster (the law firm the most, and it also cuts bail), the boxing gym gives more max nerve, and the pharmacy speeds up nerve regeneration.
 - **Perk caps:** perks from skills, weapons and businesses all add up, but the total is capped. Nerve regenerates at most 2× as fast, heat decays at most 3× as fast, jobs give at least 25% of their heat, and max nerve goes up by at most +150. The Stats tab shows your totals.
 - **Rivals:** three gangs. The strongest one you've unlocked raids your cash on hand every 10–20 minutes of play. Attack them to take loot and respect, and wipe them out for good.
 - **Winning:** beat all three gangs, reach 150,000 respect and a $500M net worth. Net worth counts cash, the vault, and what you paid for your businesses and weapons. You can keep playing afterwards.
@@ -50,7 +50,7 @@ npm run sim       # balance simulation: node tools/sim.js [hours] [seeds] [style
 
 The simulation runs five bot styles: balanced, weapons-first, businesses-first, nerve/heat-perks-first, and a rival rusher. Current results (5 seeds, active play only):
 - **Balanced:** Thief after about 10 minutes, each later rank about 1.6–2.5× slower, Kingpin after about 3.2 hours, Godfather after about 9 hours.
-- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot, so no single option is overpowered. The rival rush is 7% faster; businesses-first is 15% slower, nerve-perks-first 20% slower, and weapons-first 31% slower.
+- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot, so no single option is overpowered. The rival rush is 8% faster; businesses-first is 16% slower, nerve-perks-first 21% slower, and weapons-first 30% slower.
 - **Old saves:** a save from before the skill levels existed is reset to an empty skill tree, and every skill point spent is refunded to re-spend.
 
 ## Credits

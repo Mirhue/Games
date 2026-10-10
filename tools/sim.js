@@ -13,8 +13,9 @@ import {
   buyInvestment, attackRival, resolveRaid, activeRaider, rankIndex, successChance, perk,
   inJail, bailCost, bribeCost, investmentPrice, rivalState, fightOdds, netWorth,
   skillCost, skillUnlocked, weaponPrice, jobNerve, marketTick, buyMetal, sellMetal, maxBars,
+  rivalUnlocked, resolveEncounter, encounterType, encounterOdds, fleeOdds, payCost,
 } from '../js/engine.js';
-import { MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, ATTACK_NERVE, GODFATHER, METALS } from '../js/data.js';
+import { MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, ATTACK_NERVE, GODFATHER, METALS, ENCOUNTER_LOSS_CAP, BRIBE_PER_HEAT } from '../js/data.js';
 import { mulberry32 } from '../js/rng.js';
 
 const STEP = 1000;
@@ -115,6 +116,25 @@ function trade(s, now) {
   return s;
 }
 
+// Answers a street encounter with the option worth the most in dollars.
+function answer(s, rng, now) {
+  const e = s.encounter;
+  const type = encounterType(s);
+  const heatCost = (h) => h * BRIBE_PER_HEAT[rankIndex(s)];
+  const loss = type.lose.jail
+    ? s.cash * 0.25 + e.stake * e.tier
+    : Math.min(s.cash * (type.lose.cashLoss ?? 0), e.stake * ENCOUNTER_LOSS_CAP) + heatCost(type.lose.heat ?? 0);
+  const win = e.stake * (type.win.cash ?? 0) * (1 + perk(s, 'gangLoot')) + e.respect * type.win.respect * respectValue(s) - heatCost(type.win.heat ?? 0);
+  const odds = encounterOdds(s);
+  const values = {
+    fight: odds * win - (1 - odds) * loss,
+    flee: -(1 - fleeOdds(s)) * loss,
+    pay: s.cash >= payCost(s) ? -payCost(s) : -Infinity,
+  };
+  const choice = Object.keys(values).reduce((a, b) => (values[b] > values[a] ? b : a));
+  return resolveEncounter(s, choice, rng, now).state;
+}
+
 function shop(s, now, style, onBuy) {
   for (let guard = 0; guard < 200; guard++) {
     let bought = null;
@@ -157,6 +177,7 @@ function run(seed, style) {
     if (s.won) { winAt = now; break; }
     if (now < busyUntil) continue;
 
+    if (s.encounter) s = answer(s, rng, now);
     if (inJail(s, now)) {
       if (s.jailUntil - now > 30_000 && spendable(s) >= bailCost(s) * 3) s = payBail(raise(s, bailCost(s), now), now).state;
       continue;
@@ -164,7 +185,7 @@ function run(seed, style) {
     if (s.heat > 50 && spendable(s) >= bribeCost(s) * 3) s = bribeCops(raise(s, bribeCost(s), now), now).state;
     s = shop(s, now, style, onBuy);
 
-    const target = RIVALS.find((g) => g.rank <= r && !rivalState(s, g.id).defeated && fightOdds(s, g) >= minOdds);
+    const target = RIVALS.find((g) => rivalUnlocked(s, g) && !rivalState(s, g.id).defeated && fightOdds(s, g) >= minOdds);
     if (target && s.nerve >= ATTACK_NERVE) {
       s = attackRival(s, target.id, rng, now).state;
       busyUntil = now + STEP;

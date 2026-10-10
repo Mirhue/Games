@@ -106,3 +106,16 @@ export const VAULTS = [
   { name: 'Offshore account', price: 300_000, capacity: 12_000_000, fee: 0.03, interestPerHour: 0.01 },
   { name: 'Swiss vault', price: 4_000_000, capacity: 600_000_000, fee: 0.05, interestPerHour: 0.015 },
 ];
+
+// Investments earn cash per minute. The n-th copy costs basePrice × 1.15^n.
+// heatDecay: each copy speeds up heat decay by this fraction (laundering).
+export const INVESTMENT_GROWTH = 1.15;
+export const HEAT_DECAY_BONUS_CAP = 2;   // decay at most 3× the normal speed
+export const INVESTMENTS = [
+  { id: 'hustle', name: 'Corner hustle', basePrice: 300, incomePerMin: 5, rank: 0, heatDecay: 0 },
+  { id: 'laundromat', name: 'Laundromat', basePrice: 5_000, incomePerMin: 60, rank: 1, heatDecay: 0.05 },
+  { id: 'bar', name: 'Dive bar', basePrice: 40_000, incomePerMin: 400, rank: 2, heatDecay: 0 },
+  { id: 'nightclub', name: 'Nightclub', basePrice: 300_000, incomePerMin: 2_500, rank: 3, heatDecay: 0 },
+  { id: 'casino', name: 'Casino', basePrice: 2_500_000, incomePerMin: 18_000, rank: 4, heatDecay: 0.15 },
+  { id: 'shipping', name: 'Shipping company', basePrice: 20_000_000, incomePerMin: 120_000, rank: 5, heatDecay: 0 },
+];

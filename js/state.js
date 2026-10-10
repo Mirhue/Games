@@ -19,7 +19,7 @@ export function newState(now) {
     investments: {},
     rivals: {},
     nextRaidAt: 0,
-    playMs: 0,
+    incomePot: 0,
     stats: { missions: 0, successes: 0, arrests: 0, raidsSuffered: 0, raidsRepelled: 0, earned: 0, playMs: 0 },
     won: false,
     log: [],

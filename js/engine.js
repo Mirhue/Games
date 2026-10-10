@@ -5,6 +5,7 @@ import {
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
   BASE_POWER, WEAPON_BONUS_CAP, WEAPONS, VAULTS,
+  INVESTMENTS, INVESTMENT_GROWTH, HEAT_DECAY_BONUS_CAP, OFFLINE_CAP_MS,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -95,7 +96,11 @@ export function arrestChance(state, mission) {
 }
 
 export function netWorth(state) {
-  return state.cash + state.vault.balance;
+  let businesses = 0;
+  for (const inv of INVESTMENTS) {
+    for (let n = 0; n < (state.investments[inv.id] ?? 0); n++) businesses += priceOfCopy(inv, n);
+  }
+  return Math.round(state.cash + state.vault.balance + businesses);
 }
 
 export const inJail = (state, now) => state.jailUntil > now;
@@ -242,14 +247,75 @@ function accrueInterest(s, ms) {
   s.vault.balance = Math.min(v.capacity, grown);
 }
 
-// Advances time-based systems. Returns a new state.
-export function tick(state, now) {
+const priceOfCopy = (inv, n) => Math.round(inv.basePrice * INVESTMENT_GROWTH ** n);
+
+export function investmentPrice(state, invId) {
+  const inv = INVESTMENTS.find((x) => x.id === invId);
+  return priceOfCopy(inv, state.investments[invId] ?? 0);
+}
+
+export function buyInvestment(state, invId, now) {
+  const inv = INVESTMENTS.find((x) => x.id === invId);
+  if (!inv) return refuse(state, 'unknown', 'Unknown business.');
+  if (inv.rank > rankIndex(state)) return refuse(state, 'locked', `Only a ${RANKS[inv.rank].name} can run a ${inv.name}.`);
+  const price = investmentPrice(state, invId);
+  if (state.cash < price) return refuse(state, 'cash', `You need ${money(price)} in cash.`);
+  const s = clone(state);
+  s.cash -= price;
+  s.investments[invId] = (s.investments[invId] ?? 0) + 1;
+  const events = [good(`You bought a ${inv.name} (#${s.investments[invId]}).`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
+export function incomePerMin(state) {
+  let total = 0;
+  for (const inv of INVESTMENTS) total += (state.investments[inv.id] ?? 0) * inv.incomePerMin;
+  return total * (1 + skillEffect(state, 'incomeBonus'));
+}
+
+export function heatDecayRate(state) {
+  let bonus = 0;
+  for (const inv of INVESTMENTS) bonus += (state.investments[inv.id] ?? 0) * inv.heatDecay;
+  return 1 + Math.min(HEAT_DECAY_BONUS_CAP, bonus);
+}
+
+// Advances time-based systems and returns a new state.
+// incomeCapMs limits how much time counts for income and interest (offline cap).
+export function tick(state, now, { incomeCapMs = Infinity } = {}) {
   const elapsed = now - state.lastTick;
   if (elapsed <= 0) return state;
   const s = clone(state);
   s.lastTick = now;
   s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / NERVE_REGEN_MS);
-  s.heat = Math.max(0, s.heat - elapsed / HEAT_DECAY_MS);
-  accrueInterest(s, elapsed);
+  s.heat = Math.max(0, s.heat - (elapsed / HEAT_DECAY_MS) * heatDecayRate(s));
+  const paidMs = Math.min(elapsed, incomeCapMs);
+  accrueInterest(s, paidMs);
+  // Income piles up in a fractional pot; whole dollars move into cash.
+  s.incomePot = (s.incomePot ?? 0) + incomePerMin(s) * paidMs / 60_000;
+  const whole = Math.floor(s.incomePot + 1e-9);
+  if (whole > 0) {
+    s.cash += whole;
+    s.stats.earned += whole;
+    s.incomePot = Math.max(0, s.incomePot - whole);
+  }
   return s;
+}
+
+// Catches up on time spent away. Returns { state, events, summary }.
+export function applyOffline(state, now, rng) {
+  const elapsed = Math.max(0, now - state.lastTick);
+  const summary = { elapsed, income: 0, interest: 0 };
+  if (elapsed === 0) return { state, events: [], summary };
+  const cashBefore = state.cash;
+  const vaultBefore = state.vault.balance;
+  const s = tick(state, now, { incomeCapMs: OFFLINE_CAP_MS });
+  summary.income = s.cash - cashBefore;
+  summary.interest = Math.floor(s.vault.balance - vaultBefore);
+  const events = [];
+  if (summary.income > 0 || summary.interest > 0) {
+    events.push(good(`While you were away your businesses made ${money(summary.income)}${summary.interest > 0 ? ` and the vault earned ${money(summary.interest)}` : ''}.`));
+  }
+  addLog(s, events, now);
+  return { state: s, events, summary };
 }

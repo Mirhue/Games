@@ -79,3 +79,11 @@ test('a hundred tommy guns still only double nerve regeneration', () => {
   assert.equal(perk(s, 'nerveRegen'), PERK_CAPS.nerveRegen);
   assert.equal(nerveRegenMs(s), NERVE_REGEN_MS / 2);
 });
+
+test('net worth counts what you paid for your crew weapons', async () => {
+  const { netWorth } = await import('../js/engine.js');
+  let s = loaded();
+  const before = netWorth(s);
+  s = arm(s, 'knife', 2);
+  assert.equal(netWorth(s), before);
+});

@@ -163,7 +163,7 @@ export const INVESTMENTS = [
   { id: 'nightclub', icon: 'martini', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3 },
   { id: 'casino', icon: 'slot-machine', name: 'Casino', basePrice: 1_600_000, incomePerMin: 18_000, rank: 4, perks: { heatDecay: 0.15 } },
   { id: 'lawfirm', icon: 'gavel', name: 'Law firm', basePrice: 2_500_000, incomePerMin: 26_000, rank: 4, perks: { heatDecay: 0.1 } },
-  { id: 'shipping', icon: 'cargo-ship', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5 },
+  { id: 'shipping', icon: 'cargo-ship', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 260_000, rank: 5 },
 ];
 
 // Rival gangs. Attack them to wear down their hp; the strongest undefeated

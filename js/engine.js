@@ -152,7 +152,11 @@ export function netWorth(state) {
   for (const inv of INVESTMENTS) {
     for (let n = 0; n < (state.investments[inv.id] ?? 0); n++) businesses += priceOfCopy(inv, n);
   }
-  return Math.round(state.cash + state.vault.balance + businesses);
+  let arsenal = 0;
+  for (const w of WEAPONS) {
+    for (let n = 0; n < weaponCount(state, w.id); n++) arsenal += Math.round(w.price * WEAPON_GROWTH ** n);
+  }
+  return Math.round(state.cash + state.vault.balance + businesses + arsenal);
 }
 
 export const inJail = (state, now) => state.jailUntil > now;

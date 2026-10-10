@@ -13,6 +13,7 @@
   --stealth: #8f7ae0;
   --muscle: #e05a4f;
   --brains: #4fc1b0;
+  --street: #d4a63c;
 }
 
 * { box-sizing: border-box; }
@@ -94,6 +95,22 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; pa
 .tag.stealth { background: var(--stealth); }
 .tag.muscle { background: var(--muscle); }
 .tag.brains { background: var(--brains); }
+.tag.street { background: var(--street); }
+
+.head { display: flex; align-items: center; gap: 10px; }
+.icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.locked .icon { background: var(--muted) !important; }
+a { color: var(--gold); }
 .chance-good { color: var(--good) !important; }
 .chance-mid { color: var(--gold) !important; }
 .chance-bad { color: var(--bad) !important; }
@@ -101,8 +118,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; pa
 .banner { background: #3a1512; border: 1px solid var(--bad); border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .banner.info { background: var(--panel); border-color: var(--line); }
 
-.columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-@media (max-width: 700px) { .columns { grid-template-columns: 1fr; } }
+.columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 
 .working { position: relative; }
 .working::after { content: "Working…"; position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.7); color: var(--gold); border-radius: 8px; font-weight: 700; }

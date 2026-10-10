@@ -1,11 +1,13 @@
 // Renders the game state into the page. Pure string building, no game rules.
 import {
-  MISSIONS, RANKS, SKILLS, WEAPONS, VAULTS, INVESTMENTS, RIVALS, GODFATHER, ATTACK_NERVE,
+  MISSIONS, RANKS, SKILLS, SKILL_BRANCHES, WEAPONS, VAULTS, INVESTMENTS, RIVALS, GODFATHER,
+  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS,
 } from './data.js';
 import {
-  rankIndex, rankName, nerveMax, successChance, arrestChance, skillEffect, inJail, bailCost,
+  rankIndex, rankName, nerveMax, successChance, arrestChance, perk, inJail, bailCost,
   bribeCost, netWorth, bestWeapon, power, defense, investmentPrice, incomePerMin, rivalState,
-  fightOdds, raidOdds, activeRaider,
+  fightOdds, raidOdds, activeRaider, skillLevel, skillCost, skillUnlocked, weaponCount,
+  weaponPrice, weaponBonus, nerveRegenMs, heatDecayRate,
 } from './engine.js';
 
 export const TABS = [
@@ -24,6 +26,36 @@ export function fmt(n) {
 }
 
 const pct = (x) => Math.round(x * 100) + '%';
+const pct1 = (x) => Math.round(x * 1000) / 10 + '%';
+const icon = (name, color = 'var(--gold)') =>
+  // Inline so the URL resolves against the page, not the stylesheet.
+  `<span class="icon" style="-webkit-mask-image:url(assets/icons/${name}.svg);mask-image:url(assets/icons/${name}.svg);background:${color}"></span>`;
+const head = (iconName, title, color) => `<div class="head">${icon(iconName, color)}<div class="title">${title}</div></div>`;
+
+// Human-readable text for a perk/effect object, e.g. "+1% stealth jobs, −2% job heat".
+const PERK_TEXT = {
+  stealthChance: (v) => `+${pct1(v)} stealth jobs`,
+  muscleChance: (v) => `+${pct1(v)} muscle jobs`,
+  brainsChance: (v) => `+${pct1(v)} brains jobs`,
+  heatReduction: (v) => `−${pct1(v)} job heat`,
+  payoutBonus: (v) => `+${pct1(v)} payouts`,
+  incomeBonus: (v) => `+${pct1(v)} business income`,
+  bailDiscount: (v) => `−${pct1(v)} bail`,
+  nerveMax: (v) => `+${v} max nerve`,
+  nerveRegen: (v) => `+${pct1(v)} nerve regen`,
+  heatDecay: (v) => `+${pct1(v)} heat decay`,
+  power: (v) => `+${v} power`,
+  defense: (v) => `+${v} defense`,
+};
+export function describePerks(effects = {}) {
+  const parts = [];
+  for (const [key, v] of Object.entries(effects)) {
+    if (key === 'defense' && effects.power === v) continue;
+    if (key === 'power' && effects.defense === v) { parts.push(`+${v} power & defense`); continue; }
+    parts.push(PERK_TEXT[key]?.(v) ?? `${key} ${v}`);
+  }
+  return parts.join(', ');
+}
 const secs = (ms) => {
   const s = Math.ceil(ms / 1000);
   return s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`;
@@ -48,7 +80,7 @@ export function renderTopbar(s, now) {
     <div class="stat"><span class="label">Rank</span><span class="value">${rankName(s)}</span>${rankProgress}</div>
     <div class="stat"><span class="label">Cash</span><span class="value">${fmt(s.cash)}</span></div>
     <div class="stat"><span class="label">Vault</span><span class="value">${s.vault.tier ? `${fmt(s.vault.balance)} / ${fmt(vaultCap)}` : '—'}</span></div>
-    <div class="stat"><span class="label">Nerve ${Math.floor(s.nerve)}/${max}</span>${bar(s.nerve, max, 'var(--nerve)')}</div>
+    <div class="stat"><span class="label">Nerve ${Math.floor(s.nerve)}/${max} · +${(60_000 / nerveRegenMs(s)).toFixed(0)}/min</span>${bar(s.nerve, max, 'var(--nerve)')}</div>
     <div class="stat"><span class="label">Heat ${Math.ceil(s.heat)}</span>${bar(s.heat, 100, 'var(--heat)')}</div>
     <div class="stat"><span class="label">Respect</span><span class="value">${Math.floor(s.respect).toLocaleString('en-US')}${next ? ` / ${next.respect.toLocaleString('en-US')}` : ''}</span></div>
     <div class="stat"><span class="label">Skill points</span><span class="value">${s.sp}</span></div>
@@ -57,8 +89,7 @@ export function renderTopbar(s, now) {
 }
 
 export function renderTabs(active, s) {
-  const affordableSkill = SKILLS.some((k) => !s.skills[k.id] && s.sp >= k.cost &&
-    (k.idx === 1 || s.skills[`${k.branch}${k.idx - 1}`]));
+  const affordableSkill = SKILLS.some((k) => skillUnlocked(s, k) && skillCost(s, k.id) !== null && s.sp >= skillCost(s, k.id));
   return TABS.map(([id, label]) => {
     const badge = id === 'skills' && affordableSkill ? '<span class="badge">!</span>' : '';
     return `<button data-action="tab" data-id="${id}" class="${id === active ? 'active' : ''}">${label}${badge}</button>`;
@@ -75,14 +106,14 @@ function jailBanner(s, now) {
 function heatBanner(s) {
   if (s.heat < 1) return '';
   const cost = bribeCost(s);
-  return `<div class="banner info"><span>Heat ${Math.ceil(s.heat)}: −${pct(s.heat * 0.003)} success, more arrests.</span>
+  return `<div class="banner info"><span>Heat ${Math.ceil(s.heat)}: −${pct(s.heat * HEAT_CHANCE_PENALTY)} success, more arrests.</span>
     ${btn('bribe', `Bribe the cops ${fmt(cost)}`, { disabled: s.cash < cost, cls: 'ghost' })}</div>`;
 }
 
 function jobsPanel(s, now, ui) {
   const r = rankIndex(s);
   const jailed = inJail(s, now);
-  const payout = 1 + skillEffect(s, 'payoutBonus');
+  const payout = 1 + perk(s, 'payoutBonus');
   let html = `<h2>Jobs</h2><p class="hint">Every job costs nerve. Success pays cash, respect and skill points. Failure might land you in jail.</p>`;
   html += jailBanner(s, now) + heatBanner(s);
   for (let tier = 1; tier <= 6; tier++) {
@@ -93,7 +124,7 @@ function jobsPanel(s, now, ui) {
       const working = ui.working === m.id;
       const evPerNerve = (c * ((m.cash[0] + m.cash[1]) / 2) * payout) / m.nerve;
       html += `<div class="card ${locked ? 'locked' : ''} ${working ? 'working' : ''}">
-        <div class="title">${m.name} <span class="tag ${m.type}">${m.type}</span></div>
+        ${head(m.icon, `${m.name} <span class="tag ${m.type}">${m.type}</span>`, `var(--${m.type})`)}
         ${row('Success', pct(c), chanceClass(c))}
         ${row('Payout', `${fmt(m.cash[0] * payout)} – ${fmt(m.cash[1] * payout)}`)}
         ${row('Nerve', m.nerve)}
@@ -110,17 +141,21 @@ function jobsPanel(s, now, ui) {
 }
 
 function skillsPanel(s) {
-  let html = `<h2>Skills</h2><p class="hint">You have <b>${s.sp}</b> skill points. Learn each branch in order.</p><div class="columns">`;
-  const names = { stealth: 'Stealth', muscle: 'Muscle', brains: 'Brains' };
-  for (const branch of ['stealth', 'muscle', 'brains']) {
-    html += `<div><h3><span class="tag ${branch}">${names[branch]}</span></h3>`;
-    for (const k of SKILLS.filter((x) => x.branch === branch)) {
-      const owned = !!s.skills[k.id];
-      const ready = k.idx === 1 || s.skills[`${branch}${k.idx - 1}`];
-      html += `<div class="card ${owned ? 'owned' : ready ? '' : 'locked'}" style="margin-bottom:8px">
-        <div class="title">${k.idx}. ${k.name}</div>
-        <div class="row"><span>${k.desc}</span></div>
-        ${owned ? '<div class="row"><b>Learned</b></div>' : btn('skill', `Learn · ${k.cost} SP`, { id: k.id, disabled: !ready || s.sp < k.cost })}
+  let html = `<h2>Skills</h2><p class="hint">You have <b>${s.sp}</b> skill points. Level 1 of a skill unlocks the next one in its branch; every skill can keep leveling up.</p><div class="columns">`;
+  for (const branch of SKILL_BRANCHES) {
+    html += `<div><h3><span class="tag ${branch.id}">${branch.name}</span></h3>`;
+    for (const k of SKILLS.filter((x) => x.branch === branch.id)) {
+      const level = skillLevel(s, k.id);
+      const cost = skillCost(s, k.id);
+      const unlocked = skillUnlocked(s, k);
+      const total = Object.fromEntries(Object.entries(k.effects).map(([key, v]) => [key, Math.round(v * level * 1000) / 1000]));
+      html += `<div class="card ${level ? 'owned' : unlocked ? '' : 'locked'}" style="margin-bottom:8px">
+        ${head(k.icon, `${k.name}`)}
+        ${row('Level', `${level} / ${k.maxLevel}`)}
+        <div class="row"><span>Per level: ${describePerks(k.effects)}</span></div>
+        ${level ? `<div class="row"><span>Now: ${describePerks(total)}</span></div>` : ''}
+        ${cost === null ? '<div class="row"><b>Maxed out</b></div>'
+          : btn('skill', `${level ? 'Upgrade' : 'Learn'} · ${cost} SP`, { id: k.id, disabled: !unlocked || s.sp < cost })}
       </div>`;
     }
     html += '</div>';
@@ -131,18 +166,22 @@ function skillsPanel(s) {
 function arsenalPanel(s) {
   const r = rankIndex(s);
   const best = bestWeapon(s);
-  let html = `<h2>Arsenal</h2><p class="hint">Your best weapon boosts muscle jobs and counts in every fight.
-    Power <b>${power(s)}</b> · Defense <b>${defense(s)}</b> · Weapon: <b>${best ? best.name : 'bare fists'}</b></p><div class="grid">`;
+  const crew = WEAPONS.reduce((n, w) => n + weaponCount(s, w.id), 0);
+  let html = `<h2>Arsenal</h2><p class="hint">Every weapon you buy arms another member of your crew: all of them add power and defense, and each copy costs 25% more.
+    Your best weapon type boosts muscle jobs by <b>${pct(weaponBonus(s))}</b>.
+    Power <b>${power(s)}</b> · Defense <b>${defense(s)}</b> · Armed crew <b>${crew}</b>${best ? ` · Best: <b>${best.name}</b>` : ''}</p><div class="grid">`;
   for (const w of WEAPONS) {
-    const owned = !!s.weapons[w.id];
+    const count = weaponCount(s, w.id);
     const locked = w.rank > r;
-    html += `<div class="card ${owned ? 'owned' : locked ? 'locked' : ''}">
-      <div class="title">${w.name}</div>
-      ${row('Power', `+${w.power}`)}
-      ${row('Muscle jobs', `+${pct(w.bonus)}`)}
-      ${row('Price', fmt(w.price))}
+    const price = weaponPrice(s, w.id);
+    html += `<div class="card ${count ? 'owned' : locked ? 'locked' : ''}">
+      ${head(w.icon, `${w.name}${count ? ` ×${count}` : ''}`)}
+      ${row('Power each', `+${w.power}`)}
+      ${row('Muscle jobs (best type)', `+${pct(w.bonus)}`)}
+      ${w.perks ? row('Perk each', describePerks(w.perks)) : ''}
+      ${row(count ? 'Next copy' : 'Price', fmt(price))}
       ${locked ? row('Requires', RANKS[w.rank].name) : ''}
-      ${owned ? '<div class="row"><b>Owned</b></div>' : btn('weapon', 'Buy', { id: w.id, disabled: locked || s.cash < w.price })}
+      ${btn('weapon', count ? 'Buy another' : 'Buy', { id: w.id, disabled: locked || s.cash < price })}
     </div>`;
   }
   return html + '</div>';
@@ -184,15 +223,15 @@ function vaultPanel(s) {
 function businessPanel(s) {
   const r = rankIndex(s);
   let html = `<h2>Business</h2><p class="hint">Fronts earn money every minute, even while you're away (up to 2 hours). Total: <b>${fmt(incomePerMin(s))}/min</b></p><div class="grid">`;
-  const bonus = 1 + skillEffect(s, 'incomeBonus');
+  const bonus = 1 + perk(s, 'incomeBonus');
   for (const inv of INVESTMENTS) {
     const locked = inv.rank > r;
     const price = investmentPrice(s, inv.id);
     const count = s.investments[inv.id] ?? 0;
     html += `<div class="card ${locked ? 'locked' : count ? 'owned' : ''}">
-      <div class="title">${inv.name}${count ? ` ×${count}` : ''}</div>
+      ${head(inv.icon, `${inv.name}${count ? ` ×${count}` : ''}`)}
       ${row('Income each', `${fmt(inv.incomePerMin * bonus)}/min`)}
-      ${inv.perks?.heatDecay ? row('Launders heat', `+${pct(inv.perks.heatDecay)} decay`) : ''}
+      ${inv.perks ? row('Perk each', describePerks(inv.perks)) : ''}
       ${row('Price', fmt(price))}
       ${row('Pays back in', `${Math.ceil(price / (inv.incomePerMin * bonus))} min`)}
       ${locked ? row('Requires', RANKS[inv.rank].name) : ''}
@@ -219,7 +258,7 @@ function rivalsPanel(s, now, ui) {
     const odds = fightOdds(s, g);
     const working = ui.working === g.id;
     html += `<div class="card ${locked ? 'locked' : st.defeated ? 'owned' : ''} ${working ? 'working' : ''}">
-      <div class="title">${g.name}</div>
+      ${head(g.icon, g.name, 'var(--bad)')}
       ${row('Boss', g.boss)}
       ${row('Power', g.power)}
       ${row('Strength', `${st.hp} / ${g.hp}`)}
@@ -255,8 +294,18 @@ function statsPanel(s) {
       ${row('Raids repelled / suffered', `${st.raidsRepelled} / ${st.raidsSuffered}`)}
       ${row('Time played', `${hours} h`)}
     </div>
+    <h3>Perks (all sources, capped)</h3>
+    <div class="card">
+      ${row('Nerve regen', `+${pct(perk(s, 'nerveRegen'))} (max +${pct(PERK_CAPS.nerveRegen)})`)}
+      ${row('Max nerve', `+${perk(s, 'nerveMax')} (max +${PERK_CAPS.nerveMax})`)}
+      ${row('Heat decay', `${heatDecayRate(s).toFixed(2)}× (max ${1 + PERK_CAPS.heatDecay}×)`)}
+      ${row('Job heat', `−${pct(perk(s, 'heatReduction'))} (max −${pct(PERK_CAPS.heatReduction)})`)}
+    </div>
     <h3>Danger zone</h3>
-    ${btn('reset', 'Start a new game', { cls: 'danger' })}`;
+    ${btn('reset', 'Start a new game', { cls: 'danger' })}
+    <p class="hint" style="margin-top:20px">Icons by Lorc, Delapouite, Skoll, John Colburn, DarkZaitzev and Caro Asercion from
+      <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a>, licensed
+      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.</p>`;
 }
 
 export function renderPanel(s, now, ui) {

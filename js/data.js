@@ -11,10 +11,10 @@ export const OFFLINE_CAP_MS = 2 * 60 * 60 * 1000;
 export const RANKS = [
   { name: 'Street Rat', respect: 0 },
   { name: 'Thief', respect: 60 },
-  { name: 'Hustler', respect: 400 },
-  { name: 'Enforcer', respect: 2000 },
-  { name: 'Boss', respect: 9000 },
-  { name: 'Kingpin', respect: 35000 },
+  { name: 'Hustler', respect: 200 },
+  { name: 'Enforcer', respect: 1000 },
+  { name: 'Boss', respect: 4500 },
+  { name: 'Kingpin', respect: 18000 },
 ];
 
 // type: stealth | muscle | brains. cash is [min, max].
@@ -59,7 +59,7 @@ export const BRIBE_PER_HEAT = [4, 25, 150, 900, 5000, 25000]; // by rank
 // Effect keys: stealthChance, muscleChance, brainsChance (added to success chance),
 // heatReduction, payoutBonus, incomeBonus, bailDiscount (fractions),
 // nerveMax, power, defense (flat).
-export const SKILL_COSTS = [5, 15, 40, 100, 250];
+export const SKILL_COSTS = [5, 20, 60, 180, 500];
 const node = (branch, idx, name, desc, effects) =>
   ({ id: `${branch}${idx}`, branch, idx, name, desc, cost: SKILL_COSTS[idx - 1], effects });
 export const SKILLS = [
@@ -112,12 +112,12 @@ export const VAULTS = [
 export const INVESTMENT_GROWTH = 1.15;
 export const HEAT_DECAY_BONUS_CAP = 2;   // decay at most 3× the normal speed
 export const INVESTMENTS = [
-  { id: 'hustle', name: 'Corner hustle', basePrice: 300, incomePerMin: 5, rank: 0, heatDecay: 0 },
-  { id: 'laundromat', name: 'Laundromat', basePrice: 5_000, incomePerMin: 60, rank: 1, heatDecay: 0.05 },
-  { id: 'bar', name: 'Dive bar', basePrice: 40_000, incomePerMin: 400, rank: 2, heatDecay: 0 },
-  { id: 'nightclub', name: 'Nightclub', basePrice: 300_000, incomePerMin: 2_500, rank: 3, heatDecay: 0 },
-  { id: 'casino', name: 'Casino', basePrice: 2_500_000, incomePerMin: 18_000, rank: 4, heatDecay: 0.15 },
-  { id: 'shipping', name: 'Shipping company', basePrice: 20_000_000, incomePerMin: 120_000, rank: 5, heatDecay: 0 },
+  { id: 'hustle', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0, heatDecay: 0 },
+  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 70, rank: 1, heatDecay: 0.05 },
+  { id: 'bar', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2, heatDecay: 0 },
+  { id: 'nightclub', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3, heatDecay: 0 },
+  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 32_000, rank: 4, heatDecay: 0.15 },
+  { id: 'shipping', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5, heatDecay: 0 },
 ];
 
 // Rival gangs. Attack them to wear down their hp; the strongest undefeated
@@ -134,7 +134,7 @@ export const RIVALS = [
     loot: [3_000, 8_000], respect: 60, defeatRespect: 800, raidRespect: 20 },
   { id: 'cuervos', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
     loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, raidRespect: 120 },
-  { id: 'volkov', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 1_200, hp: 8,
+  { id: 'volkov', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 700, hp: 6,
     loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, raidRespect: 800 },
 ];
 

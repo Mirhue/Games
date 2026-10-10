@@ -110,16 +110,16 @@ import { SKILLS, PERK_CAPS, ATTACK_NERVE } from '../js/data.js';
 const oldPro = () => SKILLS.find((k) => k.id === 'street4');
 const withSkills = (s, levels) => { s.skills = { ...s.skills, ...levels }; return s; };
 
-test('Old Pro is the 4th Street Life skill and needs Second Wind first', () => {
+test('Old Pro is the last Street Life skill and needs Second Nature first', () => {
   const k = oldPro();
   assert.equal(k.name, 'Old Pro');
   assert.equal(k.maxLevel, 5);
   assert.equal(k.effects.nerveCost, 0.03);
   const s = newState(T0);
   s.sp = 1e6;
-  s.skills = { street1: 1, street2: 1 };
+  s.skills = { street1: 1, street2: 1, street3: 1 };
   assert.equal(buySkill(s, 'street4', T0).reason, 'order');
-  s.skills.street3 = 1;
+  s.skills.street3m = 1;
   assert.equal(buySkill(s, 'street4', T0).ok, true);
 });
 

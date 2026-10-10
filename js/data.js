@@ -15,6 +15,16 @@ export const PERK_CAPS = {
   nerveMax: 150,       // at most +150 max nerve
   nerveCost: 0.3,      // jobs cost at most 30% less nerve from perks
   bailDiscount: 0.9,
+  critChance: 0.1,     // chance a successful job pays double cash
+  jailCut: 0.5,        // shorter jail time
+  fightOdds: 0.2,      // added to fight odds against gangs and encounters
+  raidOdds: 0.2,       // added to the chance to repel a raid
+  raidLoss: 0.5,       // raids take less (cash, heat, weapons, downtime)
+  gangLoot: 1,         // more loot from gang fights and encounter wins
+  fleeChance: 0.3,     // added to the chance to flee an encounter
+  payCut: 0.5,         // cheaper encounter payoffs
+  bribeDiscount: 0.5,  // cheaper bribes
+  offlineMin: 120,     // extra minutes of offline income
 };
 
 // Ranks are reached by Respect. Rank i unlocks mission tier i + 1.
@@ -90,65 +100,120 @@ export const BAIL_MIN = 100;
 export const BAIL_NET_WORTH_FRACTION = 0.1;
 export const BRIBE_PER_HEAT = [4, 25, 150, 900, 5000, 25000]; // by rank
 
-// Skill tree: 4 branches. Level 1 of a node unlocks the next node in its
-// branch; every node can keep leveling up to maxLevel. Level L costs
-// baseCost × SKILL_GROWTH^(L−1). effects are per level (see PERK_CAPS).
+// Skill tree: 5 branches, each an ordered chain of big nodes with a cheap
+// minor node (max level 3) after each big one. Level 1 of a node unlocks the
+// next node in its chain; every node can keep leveling up to maxLevel. Level
+// L costs baseCost × SKILL_GROWTH^(L−1). effects are per level (see PERK_CAPS).
 export const SKILL_GROWTH = 1.6;
 const MAX_LEVELS = [5, 5, 5, 3, 1];
 const BASE_COSTS = [3, 10, 30, 100, 350];
+const MINOR_COSTS = [5, 15, 50, 160];
 const SKILL_ICONS = {
   stealth1: 'robber-hand',
+  stealth1m: 'footprint',
   stealth2: 'hooded-figure',
+  stealth2m: 'domino-mask',
   stealth3: 'lockpicks',
+  stealth3m: 'clover',
   stealth4: 'hooded-assassin',
+  stealth4m: 'ninja-mask',
   stealth5: 'robber-mask',
   muscle1: 'fist',
+  muscle1m: 'kevlar-vest',
   muscle2: 'muscle-up',
+  muscle2m: 'sunglasses',
   muscle3: 'jason-mask',
+  muscle3m: 'coins-pile',
   muscle4: 'mailed-fist',
+  muscle4m: 'bowie-knife',
   muscle5: 'thor-fist',
   brains1: 'brain',
+  brains1m: 'open-book',
   brains2: 'stopwatch',
+  brains2m: 'envelope',
   brains3: 'poker-hand',
+  brains3m: 'scroll-unfurled',
   brains4: 'hive-mind',
+  brains4m: 'piggy-bank',
   brains5: 'scales',
   street1: 'sprint',
+  street1m: 'heart-plus',
   street2: 'snowflake-1',
+  street2m: 'owl',
   street3: 'lungs',
+  street3m: 'dice-six-faces-six',
   street4: 'cigar',
+  warfare1: 'serrated-slash',
+  warfare1m: 'checked-shield',
+  warfare2: 'binoculars',
+  warfare2m: 'skull-crossed-bones',
+  warfare3: 'run',
+  warfare3m: 'car-door',
+  warfare4: 'gold-stack',
+  warfare4m: 'angry-eyes',
+  warfare5: 'crown',
 };
 const node = (branch, idx, name, effects, { maxLevel = MAX_LEVELS[idx - 1], baseCost = BASE_COSTS[idx - 1] } = {}) =>
   ({ id: `${branch}${idx}`, icon: SKILL_ICONS[`${branch}${idx}`], branch, idx, name, maxLevel, baseCost, effects });
+// A minor node sits right after big node `after` in its branch.
+const minor = (branch, after, name, effects, baseCost = MINOR_COSTS[after - 1]) =>
+  ({ id: `${branch}${after}m`, icon: SKILL_ICONS[`${branch}${after}m`], branch, idx: after + 0.5, minor: true, name, maxLevel: 3, baseCost, effects });
 export const SKILL_BRANCHES = [
   { id: 'stealth', name: 'Stealth' },
   { id: 'muscle', name: 'Muscle' },
   { id: 'brains', name: 'Brains' },
   { id: 'street', name: 'Street Life' },
+  { id: 'warfare', name: 'Warfare' },
 ];
 const brains = { brainsChance: 0.01, payoutBonus: 0.01, incomeBonus: 0.02, bailDiscount: 0.02 };
 export const SKILLS = [
   node('stealth', 1, 'Light Fingers', { stealthChance: 0.01, heatReduction: 0.02 }),
+  minor('stealth', 1, 'Quiet Steps', { fleeChance: 0.04 }),
   node('stealth', 2, 'Shadow Walker', { stealthChance: 0.01, heatReduction: 0.02 }),
+  minor('stealth', 2, 'Alibi', { jailCut: 0.06 }),
   node('stealth', 3, 'Lockpicker', { stealthChance: 0.01, heatReduction: 0.02 }),
+  minor('stealth', 3, 'Lucky Break', { critChance: 0.01 }),
   node('stealth', 4, 'Ghost', { stealthChance: 0.015, heatReduction: 0.03 }),
+  minor('stealth', 4, 'Vanish', { heatDecay: 0.05 }),
   node('stealth', 5, 'Phantom', { stealthChance: 0.04, heatReduction: 0.06 }),
 
   node('muscle', 1, 'Street Brawler', { muscleChance: 0.01, power: 2, defense: 2 }),
+  minor('muscle', 1, 'Thick Neck', { raidLoss: 0.05 }),
   node('muscle', 2, 'Tough Skin', { muscleChance: 0.01, power: 6, defense: 6 }),
+  minor('muscle', 2, 'Bodyguards', { raidOdds: 0.02 }),
   node('muscle', 3, 'Intimidator', { muscleChance: 0.01, power: 15, defense: 15 }),
+  minor('muscle', 3, 'Shakedown', { gangLoot: 0.06 }),
   node('muscle', 4, 'Iron Fist', { muscleChance: 0.015, power: 40, defense: 40 }),
+  minor('muscle', 4, 'Brawler', { fightOdds: 0.015 }),
   node('muscle', 5, 'Untouchable', { muscleChance: 0.04, power: 150, defense: 150 }),
 
   node('brains', 1, 'Street Smarts', brains),
+  minor('brains', 1, 'Bookkeeper', { offlineMin: 10 }),
   node('brains', 2, 'Planner', { ...brains, nerveMax: 3 }),
+  minor('brains', 2, 'Greased Palms', { bribeDiscount: 0.06 }),
   node('brains', 3, 'Fixer', brains),
+  minor('brains', 3, 'Negotiator', { payCut: 0.1 }),
   node('brains', 4, 'Mastermind', { brainsChance: 0.015, payoutBonus: 0.02, incomeBonus: 0.03, bailDiscount: 0.03, nerveMax: 3 }),
+  minor('brains', 4, 'Accountant', { incomeBonus: 0.02 }),
   node('brains', 5, 'Consigliere', { brainsChance: 0.04, payoutBonus: 0.05, incomeBonus: 0.1, bailDiscount: 0.06 }),
 
   node('street', 1, 'Stamina', { nerveRegen: 0.06 }, { maxLevel: 5, baseCost: 8 }),
+  minor('street', 1, 'Deep Breath', { nerveMax: 3 }, 12),
   node('street', 2, 'Cool Head', { heatDecay: 0.1 }, { maxLevel: 5, baseCost: 25 }),
+  minor('street', 2, 'Night Owl', { offlineMin: 10 }, 40),
   node('street', 3, 'Second Wind', { nerveMax: 10 }, { maxLevel: 3, baseCost: 80 }),
+  minor('street', 3, 'Second Nature', { critChance: 0.01 }, 110),
   node('street', 4, 'Old Pro', { nerveCost: 0.03 }, { maxLevel: 5, baseCost: 150 }),
+
+  node('warfare', 1, 'Scrapper', { fightOdds: 0.02 }),
+  minor('warfare', 1, 'Hard Target', { raidLoss: 0.05 }),
+  node('warfare', 2, 'Lookouts', { raidOdds: 0.03 }),
+  minor('warfare', 2, 'Grudge', { gangLoot: 0.05 }),
+  node('warfare', 3, 'Quick Feet', { fleeChance: 0.04 }, { maxLevel: 5 }),
+  minor('warfare', 3, 'Getaway Driver', { jailCut: 0.05 }),
+  node('warfare', 4, 'Spoils of War', { gangLoot: 0.1 }),
+  minor('warfare', 4, 'War Chest', { fightOdds: 0.015 }),
+  node('warfare', 5, 'Warlord', { powerPct: 0.25 }),
 ];
 
 // Weapons arm your crew: every copy adds its power to power and defense,

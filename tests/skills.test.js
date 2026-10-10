@@ -8,7 +8,12 @@ const T0 = 1_000_000;
 const mission = (id) => MISSIONS.find((m) => m.id === id);
 const node = (branch, idx) => SKILLS.find((k) => k.branch === branch && k.idx === idx);
 const rich = () => { const s = newState(T0); s.sp = 1e9; return s; };
+// Learns a big node `levels` times, first learning (level 1) every node
+// before it in the chain, minor nodes included.
 const learn = (s, branch, idx, levels = 1) => {
+  for (const prev of SKILLS.filter((k) => k.branch === branch && k.idx < idx)) {
+    if (skillLevel(s, prev.id) === 0) s = buySkill(s, prev.id, T0).state;
+  }
   for (let i = 0; i < levels; i++) {
     const r = buySkill(s, node(branch, idx).id, T0);
     assert.equal(r.ok, true, `${branch}${idx} level ${i + 1}: ${r.reason}`);
@@ -17,18 +22,17 @@ const learn = (s, branch, idx, levels = 1) => {
   return s;
 };
 
-test('four branches with the spec max levels', () => {
-  for (const b of ['stealth', 'muscle', 'brains']) {
-    assert.deepEqual(SKILLS.filter((k) => k.branch === b).map((k) => k.maxLevel), [5, 5, 5, 3, 1], b);
-  }
-  assert.deepEqual(SKILLS.filter((k) => k.branch === 'street').map((k) => k.maxLevel), [5, 5, 3, 5]);
+test('big nodes keep the spec max levels', () => {
+  const big = (b) => SKILLS.filter((k) => k.branch === b && !k.minor).map((k) => k.maxLevel);
+  for (const b of ['stealth', 'muscle', 'brains']) assert.deepEqual(big(b), [5, 5, 5, 3, 1], b);
+  assert.deepEqual(big('street'), [5, 5, 3, 5]);
 });
 
 test('a node unlocks once the previous node reaches level 1', () => {
   let s = rich();
   assert.equal(buySkill(s, node('stealth', 2).id, T0).reason, 'order');
-  s = learn(s, 'stealth', 1);
-  assert.equal(buySkill(s, node('stealth', 2).id, T0).ok, true);
+  s = learn(s, 'stealth', 2);
+  assert.equal(skillLevel(s, node('stealth', 2).id), 1);
 });
 
 test('the previous node can keep leveling after the next one unlocks', () => {
@@ -85,11 +89,13 @@ test('Cool Head speeds up heat decay', () => {
 test('Second Wind and Brains raise max nerve', () => {
   let s = learn(rich(), 'street', 1);
   s = learn(s, 'street', 2);
+  const before = nerveMax(s);
   s = learn(s, 'street', 3, 2);
-  assert.equal(nerveMax(s), NERVE_MAX_BASE + 2 * node('street', 3).effects.nerveMax);
-  s = learn(s, 'brains', 1);
+  assert.equal(nerveMax(s), before + 2 * node('street', 3).effects.nerveMax);
+  const mid = nerveMax(s);
   s = learn(s, 'brains', 2);
-  assert.equal(nerveMax(s), NERVE_MAX_BASE + 2 * node('street', 3).effects.nerveMax + node('brains', 2).effects.nerveMax);
+  assert.equal(nerveMax(s), mid + node('brains', 2).effects.nerveMax);
+  assert.equal(nerveMax(s), NERVE_MAX_BASE + effect(s, 'nerveMax'));
 });
 
 test('heat reduction lowers the heat a job adds', () => {

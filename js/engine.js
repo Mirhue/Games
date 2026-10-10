@@ -60,19 +60,25 @@ export function skillCost(state, skillId) {
   return Math.round(k.baseCost * SKILL_GROWTH ** level);
 }
 
+// The node right before this one in its branch's chain (big or minor).
+function prevSkill(k) {
+  let prev = null;
+  for (const x of SKILLS) if (x.branch === k.branch && x.idx < k.idx && (!prev || x.idx > prev.idx)) prev = x;
+  return prev;
+}
+
+// A node unlocks when the node before it is learned. A node you already own
+// stays upgradable, even if a newer minor node was put in front of it.
 export function skillUnlocked(state, k) {
-  const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
-  return !prev || skillLevel(state, prev.id) >= 1;
+  const prev = prevSkill(k);
+  return !prev || skillLevel(state, prev.id) >= 1 || skillLevel(state, k.id) >= 1;
 }
 
 // Learns a skill or raises it by one level.
 export function buySkill(state, skillId, now) {
   const k = SKILLS.find((x) => x.id === skillId);
   if (!k) return refuse(state, 'unknown', 'Unknown skill.');
-  if (!skillUnlocked(state, k)) {
-    const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
-    return refuse(state, 'order', `Learn ${prev.name} first.`);
-  }
+  if (!skillUnlocked(state, k)) return refuse(state, 'order', `Learn ${prevSkill(k).name} first.`);
   const cost = skillCost(state, skillId);
   if (cost === null) return refuse(state, 'max', `${k.name} is already maxed out.`);
   if (state.sp < cost) return refuse(state, 'sp', `You need ${cost} SP.`);
@@ -110,11 +116,11 @@ function crewPower(state) {
 }
 
 export function power(state) {
-  return BASE_POWER + crewPower(state) + perk(state, 'power');
+  return Math.round((BASE_POWER + crewPower(state) + perk(state, 'power')) * (1 + perk(state, 'powerPct')));
 }
 
 export function defense(state) {
-  return BASE_POWER + crewPower(state) + perk(state, 'defense');
+  return Math.round((BASE_POWER + crewPower(state) + perk(state, 'defense')) * (1 + perk(state, 'powerPct')));
 }
 
 // Buys one more copy of a weapon for your crew.
@@ -212,8 +218,12 @@ export function payBail(state, now) {
 }
 
 export function bribeCost(state) {
-  return Math.round(Math.ceil(state.heat) * BRIBE_PER_HEAT[rankIndex(state)]);
+  return Math.round(Math.ceil(state.heat) * BRIBE_PER_HEAT[rankIndex(state)] * (1 - perk(state, 'bribeDiscount')));
 }
+
+export const jailMs = (state, tier) => Math.round(JAIL_MS_PER_TIER * tier * (1 - perk(state, 'jailCut')));
+
+export const offlineCapMs = (state) => OFFLINE_CAP_MS + perk(state, 'offlineMin') * 60_000;
 
 export function bribeCops(state, now) {
   if (state.heat < 1) return refuse(state, 'cold', 'The cops are not looking for you.');
@@ -265,9 +275,13 @@ export function doMission(state, missionId, rng, now) {
   if (success) {
     addHeat(s, heatGained(s, m.heat * heatFactor));
     const base = m.cash[0] + rng() * (m.cash[1] - m.cash[0]);
-    const cash = Math.round(base * (1 + perk(s, 'payoutBonus')));
+    let cash = Math.round(base * (1 + perk(s, 'payoutBonus')));
+    // Rolled only with the perk, so runs without it keep the same rng sequence.
+    const crit = perk(s, 'critChance') > 0 && rng() < perk(s, 'critChance');
+    if (crit) cash *= 2;
     s.stats.successes += 1;
     events.push(good(`${m.name}: success! +${money(cash)}, +${respect} respect, +${sp} SP.`));
+    if (crit) events.push(good('Lucky break: the take was double!'));
     if (masteryLevel(state, m.id) === MASTERY.levels.length - 1 && rng() < MASTERY.refundChance) {
       refunded = true;
       s.nerve = Math.min(nerveMax(s), s.nerve + cost);
@@ -284,9 +298,9 @@ export function doMission(state, missionId, rng, now) {
     if (arrested) {
       const seized = Math.round(s.cash * SEIZE_FRACTION);
       s.cash -= seized;
-      s.jailUntil = now + JAIL_MS_PER_TIER * m.tier;
+      s.jailUntil = now + jailMs(s, m.tier);
       s.stats.arrests += 1;
-      events.push(bad(`${m.name}: busted! The cops seized ${money(seized)} and locked you up for ${m.tier * JAIL_MS_PER_TIER / 1000}s.`));
+      events.push(bad(`${m.name}: busted! The cops seized ${money(seized)} and locked you up for ${Math.round(jailMs(s, m.tier) / 1000)}s.`));
     } else {
       events.push(bad(`${m.name}: it went wrong. You got away empty-handed.`));
     }
@@ -413,7 +427,7 @@ export function applyOffline(state, now, rng) {
   if (elapsed === 0) return { state, events: [], summary };
   const cashBefore = state.cash;
   const vaultBefore = state.vault.balance;
-  const s = tick(state, now, { incomeCapMs: OFFLINE_CAP_MS });
+  const s = tick(state, now, { incomeCapMs: offlineCapMs(state) });
   summary.income = s.cash - cashBefore;
   summary.interest = Math.floor(s.vault.balance - vaultBefore);
   const events = [];

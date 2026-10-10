@@ -1,6 +1,10 @@
 // Pure game rules. Every action takes the state (plus rng/now where needed),
 // works on a copy and returns { ok, state, events, reason? }.
-import { NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS } from './data.js';
+import {
+  NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
+  HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
+  JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT,
+} from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 const clone = (s) => structuredClone(s);
@@ -25,7 +29,53 @@ export function nerveMax(state) {
 }
 
 export function successChance(state, mission) {
-  return clamp(mission.baseChance, 0.05, 0.95);
+  return clamp(mission.baseChance - state.heat * HEAT_CHANCE_PENALTY, 0.05, 0.95);
+}
+
+export function arrestChance(state, mission) {
+  return clamp(ARREST_BASE[mission.tier - 1] + state.heat * HEAT_ARREST_BONUS, 0, 0.95);
+}
+
+export function netWorth(state) {
+  return state.cash + state.vault.balance;
+}
+
+export const inJail = (state, now) => state.jailUntil > now;
+
+function addHeat(s, amount) {
+  s.heat = clamp(s.heat + amount, 0, HEAT_MAX);
+}
+
+export function bailCost(state) {
+  return Math.round(Math.max(BAIL_MIN, netWorth(state) * BAIL_NET_WORTH_FRACTION));
+}
+
+export function payBail(state, now) {
+  if (!inJail(state, now)) return refuse(state, 'free', "You're not in jail.");
+  const cost = bailCost(state);
+  if (state.cash < cost) return refuse(state, 'cash', `Bail is ${money(cost)} in cash. You can't cover it.`);
+  const s = clone(state);
+  s.cash -= cost;
+  s.jailUntil = 0;
+  const events = [good(`You paid ${money(cost)} bail and walked out.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
+}
+
+export function bribeCost(state) {
+  return Math.round(Math.ceil(state.heat) * BRIBE_PER_HEAT[rankIndex(state)]);
+}
+
+export function bribeCops(state, now) {
+  if (state.heat < 1) return refuse(state, 'cold', 'The cops are not looking for you.');
+  const cost = bribeCost(state);
+  if (state.cash < cost) return refuse(state, 'cash', `The cops want ${money(cost)}. You don't have it.`);
+  const s = clone(state);
+  s.cash -= cost;
+  s.heat = 0;
+  const events = [good(`You slipped the cops ${money(cost)}. Heat is gone.`)];
+  addLog(s, events, now);
+  return { ok: true, state: s, events };
 }
 
 export function addLog(state, events, now) {
@@ -48,6 +98,7 @@ export function doMission(state, missionId, rng, now) {
   const m = MISSIONS.find((x) => x.id === missionId);
   if (!m) return refuse(state, 'unknown', 'Unknown job.');
   if (m.tier > rankIndex(state) + 1) return refuse(state, 'locked', `You need to be a ${RANKS[m.tier - 1].name} for that.`);
+  if (inJail(state, now)) return refuse(state, 'jail', "You're in jail.");
   if (state.nerve < m.nerve) return refuse(state, 'nerve', 'Not enough nerve. Catch your breath.');
 
   const s = clone(state);
@@ -55,16 +106,28 @@ export function doMission(state, missionId, rng, now) {
   s.nerve -= m.nerve;
   s.stats.missions += 1;
   const success = rng() < successChance(s, m);
+  let arrested = false;
   if (success) {
+    addHeat(s, m.heat);
     const cash = Math.round(m.cash[0] + rng() * (m.cash[1] - m.cash[0]));
     s.stats.successes += 1;
     events.push(good(`${m.name}: success! +${money(cash)}, +${m.respect} respect, +${m.sp} SP.`));
     reward(s, { cash, respect: m.respect, sp: m.sp }, events);
   } else {
-    events.push(bad(`${m.name}: it went wrong. You got away empty-handed.`));
+    arrested = rng() < arrestChance(s, m);
+    addHeat(s, m.heat / 2);
+    if (arrested) {
+      const seized = Math.round(s.cash * SEIZE_FRACTION);
+      s.cash -= seized;
+      s.jailUntil = now + JAIL_MS_PER_TIER * m.tier;
+      s.stats.arrests += 1;
+      events.push(bad(`${m.name}: busted! The cops seized ${money(seized)} and locked you up for ${m.tier * JAIL_MS_PER_TIER / 1000}s.`));
+    } else {
+      events.push(bad(`${m.name}: it went wrong. You got away empty-handed.`));
+    }
   }
   addLog(s, events, now);
-  return { ok: true, success, state: s, events };
+  return { ok: true, success, arrested, state: s, events };
 }
 
 // Advances time-based systems. Returns a new state.
@@ -74,5 +137,6 @@ export function tick(state, now) {
   const s = clone(state);
   s.lastTick = now;
   s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / NERVE_REGEN_MS);
+  s.heat = Math.max(0, s.heat - elapsed / HEAT_DECAY_MS);
   return s;
 }

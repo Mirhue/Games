@@ -43,3 +43,14 @@ export const MISSIONS = [
   { id: 'turf', name: 'Take over rival turf', tier: 6, type: 'muscle', nerve: 26, baseChance: 0.30, cash: [450000, 850000], respect: 1800, sp: 12, heat: 18 },
   { id: 'mayor', name: 'Bribe the mayor', tier: 6, type: 'brains', nerve: 28, baseChance: 0.25, cash: [550000, 1000000], respect: 2000, sp: 12, heat: 16 },
 ];
+
+// Police
+export const HEAT_MAX = 100;
+export const HEAT_CHANCE_PENALTY = 0.003;   // success chance lost per heat point
+export const HEAT_ARREST_BONUS = 0.004;     // arrest chance gained per heat point
+export const ARREST_BASE = [0.15, 0.19, 0.23, 0.27, 0.31, 0.35]; // by mission tier
+export const JAIL_MS_PER_TIER = 20_000;
+export const SEIZE_FRACTION = 0.25;          // share of cash on hand taken on arrest
+export const BAIL_MIN = 100;
+export const BAIL_NET_WORTH_FRACTION = 0.1;
+export const BRIBE_PER_HEAT = [4, 25, 150, 900, 5000, 25000]; // by rank

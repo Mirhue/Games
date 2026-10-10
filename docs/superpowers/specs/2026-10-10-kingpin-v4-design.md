@@ -57,6 +57,7 @@ Seven gangs instead of three. The win needs all seven defeated. **The Commission
 - **Fight odds:** your power / (your power + encounter power), plus the `fightOdds` perk, clamped to 5–95%.
 - **Flee:** a successful flee does nothing.
 - **Pay:** needs the cash on hand.
+- **Loss cap:** a lost encounter takes at most 2 × the stake in cash (`ENCOUNTER_LOSS_CAP`). Otherwise a rich player would always pay, and the choice would stop mattering.
 
 ## 4. Gangs fight back (D)
 

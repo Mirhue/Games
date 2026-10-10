@@ -96,6 +96,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; pa
 .tag.muscle { background: var(--muscle); }
 .tag.brains { background: var(--brains); }
 .tag.street { background: var(--street); }
+.tag.warfare { background: var(--bad); }
 .tag.outgrown { background: var(--line); color: var(--muted); }
 .was { color: var(--muted); font-weight: normal; }
 .card .bar { width: 100%; }
@@ -154,3 +155,18 @@ a { color: var(--gold); }
 .trade { display: flex; gap: 6px; }
 .trade button { flex: 1; padding: 6px 4px; }
 #log p.news { border-color: var(--gold); }
+
+/* Small skills */
+.card.minor { padding: 8px 10px; gap: 4px; margin: -4px 0 8px 18px; border-style: dashed; }
+.card.minor.owned { border-style: solid; }
+.card.minor .icon { width: 26px; height: 26px; }
+.card.minor .title { font-size: 13px; }
+.card.minor button { padding: 4px 10px; font-size: 13px; }
+.lvl { color: var(--muted); font-weight: normal; font-size: 12px; }
+.columns > div > .card:not(.minor) { margin-bottom: 8px; }
+
+/* Encounters */
+.encounter .head h2 { margin: 0; }
+.choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.choices button { flex: 1; }
+.choices button.chance-good, .choices button.chance-mid, .choices button.chance-bad { color: var(--bg) !important; }

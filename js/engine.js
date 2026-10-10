@@ -11,7 +11,7 @@ import {
   BASE_POWER, WEAPON_BONUS_CAP, WEAPON_GROWTH, WEAPONS, VAULTS,
   INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
-  OFFLINE_RAID_AFTER_MS, GODFATHER, GANGS, ENCOUNTERS, ENCOUNTER_CHANCE, ENCOUNTER_POWER,
+  OFFLINE_RAID_AFTER_MS, GODFATHER, GANGS, ENCOUNTERS, ENCOUNTER_CHANCE, ENCOUNTER_POWER, ENCOUNTER_LOSS_CAP,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -344,7 +344,7 @@ function encounterLoss(s, enc, type, now, events) {
   }
   const parts = [];
   if (lose.cashLoss) {
-    const lost = Math.round(s.cash * lose.cashLoss);
+    const lost = Math.min(Math.round(s.cash * lose.cashLoss), Math.round(enc.stake * ENCOUNTER_LOSS_CAP));
     s.cash -= lost;
     parts.push(`you lost ${money(lost)}`);
   }
@@ -529,6 +529,7 @@ export function applyOffline(state, now, rng) {
     out = raid.state;
     summary.raid = raid.repelled ? 'repelled' : 'lost';
     summary.stolen = raid.stolen;
+    summary.raidText = raid.events.at(-1)?.text;
   }
   // Worth a welcome-back popup: a real break, or something happened.
   summary.notable = elapsed >= OFFLINE_RAID_AFTER_MS || !!summary.raid;

@@ -3,9 +3,9 @@ import { newState, serialize, deserialize, SAVE_KEY } from './state.js';
 import {
   tick, applyOffline, doMission, payBail, bribeCops, buySkill, buyWeapon, upgradeVault,
   deposit, withdraw, buyInvestment, attackRival, resolveRaid, activeRaider, addLog,
-  marketTick, buyMetal, sellMetal,
+  marketTick, buyMetal, sellMetal, resolveEncounter,
 } from './engine.js';
-import { renderTopbar, renderTabs, renderPanel, renderLog, awayModal, winModal } from './ui.js';
+import { renderTopbar, renderTabs, renderPanel, renderLog, awayModal, winModal, encounterModal } from './ui.js';
 
 const WORK_MS = 1000;          // "working…" delay before a job resolves
 const AWAY_GAP_MS = 60_000;    // a gap this long counts as time away (sleep, background tab)
@@ -48,6 +48,15 @@ function showModal(html) {
   $('modal').classList.remove('hidden');
 }
 
+// A pending street encounter keeps its popup up until it is answered.
+function showEncounter() {
+  if (!state.encounter || pointerHeld) return;
+  const html = encounterModal(state);
+  if ($('modal').classList.contains('hidden') || ($('modal').querySelector('.encounter') && html !== showEncounter.last)) {
+    showModal(showEncounter.last = html);
+  }
+}
+
 function render() {
   const now = Date.now();
   $('topbar').innerHTML = renderTopbar(state, now);
@@ -62,6 +71,7 @@ function render() {
   if (!typing && !chartHovered && panel !== render.panel) $('panel').innerHTML = render.panel = panel;
   const log = renderLog(state);
   if (log !== render.log) $('log').innerHTML = render.log = log;
+  showEncounter();
 }
 
 // Applies an engine result: keeps the new state, shows a toast for refusals.
@@ -122,6 +132,14 @@ const actions = {
       if (r.ok) toast(r.events[0].text);
       apply(r);
     }, WORK_MS);
+  },
+  encounter: (choice) => {
+    const r = resolveEncounter(state, choice, Math.random, Date.now());
+    if (r.ok) {
+      $('modal').classList.add('hidden');
+      toast(r.events[0].text);
+    }
+    apply(r);
   },
   bail: () => apply(payBail(state, Date.now())),
   bribe: () => apply(bribeCops(state, Date.now())),

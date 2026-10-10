@@ -4,7 +4,7 @@ import { newState } from '../js/state.js';
 import {
   doMission, attackRival, resolveEncounter, encounterOdds, fleeOdds, payCost, power, jailMs,
 } from '../js/engine.js';
-import { ENCOUNTERS, ENCOUNTER_CHANCE, ENCOUNTER_POWER, MISSIONS, RANKS } from '../js/data.js';
+import { ENCOUNTERS, ENCOUNTER_CHANCE, ENCOUNTER_POWER, ENCOUNTER_LOSS_CAP, MISSIONS, RANKS } from '../js/data.js';
 
 const T0 = 1_000_000;
 const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length]; };
@@ -135,4 +135,11 @@ test('gangLoot raises the cash from a won encounter', () => {
 test('nothing to resolve, or an unknown choice, is refused', () => {
   assert.equal(resolveEncounter(thief(), 'fight', () => 0, T0).reason, 'none');
   assert.equal(resolveEncounter(pending('mugger'), 'dance', () => 0, T0).reason, 'choice');
+});
+
+test('an encounter never takes more than twice the stake in cash', () => {
+  const s = pending('crew');
+  s.cash = 10_000_000;
+  const r = resolveEncounter(s, 'fight', () => 0.999, T0);
+  assert.equal(r.state.cash, 10_000_000 - Math.round(s.encounter.stake * ENCOUNTER_LOSS_CAP));
 });

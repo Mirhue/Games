@@ -312,6 +312,7 @@ export const RIVALS = [
 // of the job's stake and respect).
 export const ENCOUNTER_CHANCE = 0.06;
 export const ENCOUNTER_POWER = [15, 40, 120, 300, 700, 1500];   // by job tier
+export const ENCOUNTER_LOSS_CAP = 2;   // a lost encounter takes at most this × the stake in cash
 export const ENCOUNTERS = [
   { id: 'mugger', icon: 'knife-thrust', name: 'Mugger', text: 'A mugger jumps you in an alley on the way back.',
     mult: 0.6, flee: 0.6, pay: 0.3, win: { cash: 0.5, respect: 1 }, lose: { cashLoss: 0.1, heat: 5 } },

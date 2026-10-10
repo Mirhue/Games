@@ -1,14 +1,15 @@
 // Renders the game state into the page. Pure string building, no game rules.
 import {
   MISSIONS, RANKS, SKILLS, SKILL_BRANCHES, WEAPONS, VAULTS, INVESTMENTS, RIVALS, GODFATHER,
-  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS, MASTERY, OUTGROWN, METALS, MARKET,
+  ATTACK_NERVE, HEAT_CHANCE_PENALTY, PERK_CAPS, MASTERY, OUTGROWN, METALS, MARKET, GANGS, ENCOUNTER_LOSS_CAP,
 } from './data.js';
 import {
   rankIndex, rankName, nerveMax, successChance, arrestChance, perk, inJail, bailCost,
   bribeCost, netWorth, bestWeapon, power, defense, investmentPrice, incomePerMin, rivalState,
   fightOdds, raidOdds, activeRaider, skillLevel, skillCost, skillUnlocked, weaponCount,
   weaponPrice, weaponBonus, nerveRegenMs, heatDecayRate, masteryLevel, outgrownLevel, jobNerve,
-  metalBuyPrice, metalSellPrice, maxBars,
+  metalBuyPrice, metalSellPrice, maxBars, rivalPower, rivalUnlocked, activeRaiders, sabotaged,
+  vaultFrozen, encounterType, encounterOdds, fleeOdds, payCost, offlineCapMs,
 } from './engine.js';
 
 export const TABS = [
@@ -48,6 +49,17 @@ const PERK_TEXT = {
   heatDecay: (v) => `+${pct1(v)} heat decay`,
   power: (v) => `+${v} power`,
   defense: (v) => `+${v} defense`,
+  critChance: (v) => `+${pct1(v)} double-payout chance`,
+  jailCut: (v) => `−${pct1(v)} jail time`,
+  fightOdds: (v) => `+${pct1(v)} fight odds`,
+  raidOdds: (v) => `+${pct1(v)} raid defense`,
+  raidLoss: (v) => `−${pct1(v)} raid damage`,
+  gangLoot: (v) => `+${pct1(v)} loot from fights`,
+  fleeChance: (v) => `+${pct1(v)} flee chance`,
+  payCut: (v) => `−${pct1(v)} payoffs`,
+  bribeDiscount: (v) => `−${pct1(v)} bribes`,
+  offlineMin: (v) => `+${v} min offline income`,
+  powerPct: (v) => `+${pct1(v)} power & defense`,
 };
 export function describePerks(effects = {}) {
   const parts = [];
@@ -86,7 +98,7 @@ export function renderTopbar(s, now) {
     <div class="stat"><span class="label">Heat ${Math.ceil(s.heat)}</span>${bar(s.heat, 100, 'var(--heat)')}</div>
     <div class="stat"><span class="label">Respect</span><span class="value">${Math.floor(s.respect).toLocaleString('en-US')}${next ? ` / ${next.respect.toLocaleString('en-US')}` : ''}</span></div>
     <div class="stat"><span class="label">Skill points</span><span class="value">${s.sp}</span></div>
-    <div class="stat"><span class="label">Income</span><span class="value">${fmt(incomePerMin(s))}/min</span></div>
+    <div class="stat"><span class="label">Income</span><span class="value">${fmt(incomePerMin(s, now))}/min</span></div>
     ${inJail(s, now) ? `<div class="stat"><span class="label">Status</span><span class="value" style="color:var(--bad)">In jail ${secs(s.jailUntil - now)}</span></div>` : ''}`;
 }
 
@@ -145,7 +157,7 @@ function jobsPanel(s, now, ui) {
         ${row('Worth per nerve', `≈ ${fmt(evPerNerve)}`)}
         ${row('Mastery', mastery)}
         ${next ? bar(done - MASTERY.levels[ml].at, next.at - MASTERY.levels[ml].at, `var(--${m.type})`) : ''}
-        ${btn('job', 'Do it', { id: m.id, disabled: locked || jailed || s.nerve < cost || !!ui.working })}
+        ${btn('job', 'Do it', { id: m.id, disabled: locked || jailed || s.nerve < cost || !!ui.working || !!s.encounter })}
       </div>`;
     }
     html += '</div>';
@@ -155,7 +167,8 @@ function jobsPanel(s, now, ui) {
 }
 
 function skillsPanel(s) {
-  let html = `<h2>Skills</h2><p class="hint">You have <b>${s.sp}</b> skill points. Level 1 of a skill unlocks the next one in its branch; every skill can keep leveling up.</p><div class="columns">`;
+  let html = `<h2>Skills</h2><p class="hint">You have <b>${s.sp}</b> skill points. Each skill unlocks the next one in its branch at level 1, and can keep leveling up.
+    The small skills between the big ones are cheap steps (up to level 3).</p><div class="columns">`;
   for (const branch of SKILL_BRANCHES) {
     html += `<div><h3><span class="tag ${branch.id}">${branch.name}</span></h3>`;
     for (const k of SKILLS.filter((x) => x.branch === branch.id)) {
@@ -163,13 +176,22 @@ function skillsPanel(s) {
       const cost = skillCost(s, k.id);
       const unlocked = skillUnlocked(s, k);
       const total = Object.fromEntries(Object.entries(k.effects).map(([key, v]) => [key, Math.round(v * level * 1000) / 1000]));
-      html += `<div class="card ${level ? 'owned' : unlocked ? '' : 'locked'}" style="margin-bottom:8px">
+      const buy = cost === null ? '<div class="row"><b>Maxed out</b></div>'
+        : btn('skill', `${level ? 'Upgrade' : 'Learn'} · ${cost} SP`, { id: k.id, disabled: !unlocked || s.sp < cost });
+      if (k.minor) {
+        html += `<div class="card minor ${level ? 'owned' : unlocked ? '' : 'locked'}">
+          ${head(k.icon, `${k.name} <span class="lvl">${level}/${k.maxLevel}</span>`)}
+          <div class="row"><span>${describePerks(level ? total : k.effects)}${level ? '' : ' per level'}</span></div>
+          ${buy}
+        </div>`;
+        continue;
+      }
+      html += `<div class="card ${level ? 'owned' : unlocked ? '' : 'locked'}">
         ${head(k.icon, `${k.name}`)}
         ${row('Level', `${level} / ${k.maxLevel}`)}
         <div class="row"><span>Per level: ${describePerks(k.effects)}</span></div>
         ${level ? `<div class="row"><span>Now: ${describePerks(total)}</span></div>` : ''}
-        ${cost === null ? '<div class="row"><b>Maxed out</b></div>'
-          : btn('skill', `${level ? 'Upgrade' : 'Learn'} · ${cost} SP`, { id: k.id, disabled: !unlocked || s.sp < cost })}
+        ${buy}
       </div>`;
     }
     html += '</div>';
@@ -201,10 +223,18 @@ function arsenalPanel(s) {
   return html + '</div>';
 }
 
-function vaultPanel(s) {
+function frozenBanner(s, now) {
+  return vaultFrozen(s, now)
+    ? `<div class="banner"><span><b>Vault hacked.</b> Ghost Net froze it: no deposits, withdrawals or interest for ${secs(s.vaultFrozenUntil - now)}.</span></div>`
+    : '';
+}
+
+function vaultPanel(s, now) {
   const v = VAULTS[s.vault.tier];
   const next = VAULTS[s.vault.tier + 1];
+  const frozen = vaultFrozen(s, now);
   let html = `<h2>Vault</h2><p class="hint">Cash on hand can be stolen by raiders and seized by the police. The vault is safe.</p>`;
+  html += frozenBanner(s, now);
   if (s.vault.tier > 0) {
     html += `<div class="card owned">
       <div class="title">${v.name}</div>
@@ -213,11 +243,11 @@ function vaultPanel(s) {
       ${row('Interest', v.interestPerHour ? `${(v.interestPerHour * 100).toFixed(1)}% per hour` : 'none')}
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <input id="vault-amount" type="number" min="1" placeholder="Amount">
-        ${btn('deposit', 'Deposit')} ${btn('withdraw', 'Withdraw', { cls: 'ghost' })}
+        ${btn('deposit', 'Deposit', { disabled: frozen })} ${btn('withdraw', 'Withdraw', { cls: 'ghost', disabled: frozen })}
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${btn('deposit-all', 'Deposit all cash', { disabled: s.cash < 1 })}
-        ${btn('withdraw-all', 'Withdraw all', { cls: 'ghost', disabled: s.vault.balance < 1 })}
+        ${btn('deposit-all', 'Deposit all cash', { disabled: frozen || s.cash < 1 })}
+        ${btn('withdraw-all', 'Withdraw all', { cls: 'ghost', disabled: frozen || s.vault.balance < 1 })}
       </div>
     </div>`;
   }
@@ -234,9 +264,10 @@ function vaultPanel(s) {
   return html;
 }
 
-function businessPanel(s) {
+function businessPanel(s, now) {
   const r = rankIndex(s);
-  let html = `<h2>Business</h2><p class="hint">Fronts earn money every minute, even while you're away (up to 2 hours). Total: <b>${fmt(incomePerMin(s))}/min</b></p><div class="grid">`;
+  const offlineH = Math.round(offlineCapMs(s) / 360_000) / 10;
+  let html = `<h2>Business</h2><p class="hint">Fronts earn money every minute, even while you're away (up to ${offlineH} hours). Total: <b>${fmt(incomePerMin(s, now))}/min</b></p><div class="grid">`;
   const bonus = 1 + perk(s, 'incomeBonus');
   for (const inv of INVESTMENTS) {
     const locked = inv.rank > r;
@@ -245,6 +276,7 @@ function businessPanel(s) {
     html += `<div class="card ${locked ? 'locked' : count ? 'owned' : ''}">
       ${head(inv.icon, `${inv.name}${count ? ` ×${count}` : ''}`)}
       ${row('Income each', `${fmt(inv.incomePerMin * bonus)}/min`)}
+      ${sabotaged(s, inv.id, now) ? row('Sabotaged by the Triad', secs(s.sabotage[inv.id] - now), 'chance-bad') : ''}
       ${inv.perks ? row('Perk each', describePerks(inv.perks)) : ''}
       ${row('Price', fmt(price))}
       ${row('Pays back in', `${Math.ceil(price / (inv.incomePerMin * bonus))} min`)}
@@ -328,31 +360,41 @@ function marketPanel(s) {
 
 function rivalsPanel(s, now, ui) {
   const r = rankIndex(s);
-  const raider = activeRaider(s);
+  const raiders = activeRaiders(s);
+  const avenger = RIVALS.find((g) => g.id === s.raidFrom);
   const jailed = inJail(s, now);
-  let html = `<h2>Rivals</h2><p class="hint">Hit rival gangs to take their money and respect. Wipe out all three to rule the town.
+  let html = `<h2>Rivals</h2><p class="hint">Hit rival gangs to take their money and respect. Wipe out all ${RIVALS.length} to rule the town.
+    Gangs you leave alone grow stronger, hurt gangs heal, and a gang you hit may come back for revenge.
     Your power <b>${power(s)}</b>, defense <b>${defense(s)}</b>.</p>`;
-  html += jailBanner(s, now);
-  html += raider
-    ? `<div class="banner info"><span>${raider.name} are eyeing your cash. Next raid in about ${secs(s.raidIn)}. Your chance to repel it: <b>${pct(raidOdds(s, raider))}</b>.</span></div>`
-    : '';
+  html += jailBanner(s, now) + frozenBanner(s, now);
+  if (avenger && raiders.includes(avenger)) {
+    html += `<div class="banner"><span><b>${avenger.name} want revenge.</b> They hit you in about ${secs(s.raidIn)}. Your chance to repel them: <b>${pct(raidOdds(s, avenger))}</b>.</span></div>`;
+  } else if (raiders.length) {
+    html += `<div class="banner info"><span>Next raid in about ${secs(s.raidIn)}, by one of ${raiders.length === 1 ? raiders[0].name : `${raiders.length} gangs`}.</span></div>`;
+  }
   html += '<div class="grid">';
   for (const g of RIVALS) {
     const st = rivalState(s, g.id);
-    const locked = g.rank > r;
+    const unlocked = rivalUnlocked(s, g);
     const odds = fightOdds(s, g);
     const working = ui.working === g.id;
-    html += `<div class="card ${locked ? 'locked' : st.defeated ? 'owned' : ''} ${working ? 'working' : ''}">
+    const p = rivalPower(s, g);
+    const grown = Math.round((p / g.power - 1) * 100);
+    const healIn = !st.defeated && unlocked && st.hp < g.hp ? GANGS.healMs - st.quietMs : 0;
+    html += `<div class="card ${!unlocked ? 'locked' : st.defeated ? 'owned' : ''} ${working ? 'working' : ''}">
       ${head(g.icon, g.name, 'var(--bad)')}
       ${row('Boss', g.boss)}
-      ${row('Power', g.power)}
+      ${row('Raids', g.raidText)}
+      ${row('Power', `${p}${grown > 0 ? ` <span class="chance-bad">(+${grown}%)</span>` : ''}`)}
       ${row('Strength', `${st.hp} / ${g.hp}`)}
       ${bar(st.hp, g.hp, 'var(--bad)')}
+      ${healIn ? row('Heals 1 in', secs(healIn)) : ''}
       ${row('Your odds', pct(odds), chanceClass(odds))}
-      ${row('Loot per win', `${fmt(g.loot[0])} – ${fmt(g.loot[1])}`)}
-      ${locked ? row('Requires', RANKS[g.rank].name) : ''}
+      ${row('Loot per win', `${fmt(g.loot[0] * (1 + perk(s, 'gangLoot')))} – ${fmt(g.loot[1] * (1 + perk(s, 'gangLoot')))}`)}
+      ${row('Wipe-out bonus', `+${g.defeatRespect.toLocaleString('en-US')} respect, +${g.defeatSp} SP`)}
+      ${g.rank > r ? row('Requires', RANKS[g.rank].name) : !unlocked ? row('Requires', 'every other gang gone') : ''}
       ${st.defeated ? '<div class="row"><b>Defeated</b></div>'
-        : btn('attack', `Attack · ${ATTACK_NERVE} nerve`, { id: g.id, disabled: locked || jailed || s.nerve < ATTACK_NERVE || !!ui.working })}
+        : btn('attack', `Attack · ${ATTACK_NERVE} nerve`, { id: g.id, disabled: !unlocked || jailed || s.nerve < ATTACK_NERVE || !!ui.working || !!s.encounter })}
     </div>`;
   }
   return html + '</div>';
@@ -377,6 +419,7 @@ function statsPanel(s) {
       ${row('Jobs (successful)', `${st.missions} (${st.successes})`)}
       ${row('Arrests', st.arrests)}
       ${row('Raids repelled / suffered', `${st.raidsRepelled} / ${st.raidsSuffered}`)}
+      ${row('Gangs wiped out', `${beaten} / ${RIVALS.length}`)}
       ${row('Time played', `${hours} h`)}
     </div>
     <h3>Perks (all sources, capped)</h3>
@@ -386,10 +429,14 @@ function statsPanel(s) {
       ${row('Heat decay', `${heatDecayRate(s).toFixed(2)}× (max ${1 + PERK_CAPS.heatDecay}×)`)}
       ${row('Job heat', `−${pct(perk(s, 'heatReduction'))} (max −${pct(PERK_CAPS.heatReduction)})`)}
       ${row('Job nerve', `−${pct(perk(s, 'nerveCost'))} (max −${pct(PERK_CAPS.nerveCost)})`)}
+      ${['critChance', 'jailCut', 'fightOdds', 'raidOdds', 'raidLoss', 'gangLoot', 'fleeChance', 'payCut', 'bribeDiscount']
+    .map((k) => row(PERK_TEXT[k](0).replace(/^[+−]0% /, ''), `${pct1(perk(s, k))} (max ${pct(PERK_CAPS[k])})`)).join('')}
+      ${row('Offline income', `${Math.round(offlineCapMs(s) / 60_000)} min (max ${120 + PERK_CAPS.offlineMin} min)`)}
+      ${perk(s, 'powerPct') ? row('Power & defense', `+${pct(perk(s, 'powerPct'))}`) : ''}
     </div>
     <h3>Danger zone</h3>
     ${btn('reset', 'Start a new game', { cls: 'danger' })}
-    <p class="hint" style="margin-top:20px">Icons by Lorc, Delapouite, Skoll, John Colburn, DarkZaitzev and Caro Asercion from
+    <p class="hint" style="margin-top:20px">Icons by Lorc, Delapouite, Skoll, John Colburn, DarkZaitzev, Caro Asercion, Andy Meneely, Faithtoken and Zeromancer from
       <a href="https://game-icons.net" target="_blank" rel="noopener">game-icons.net</a>, licensed
       <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.</p>`;
 }
@@ -398,8 +445,8 @@ export function renderPanel(s, now, ui) {
   switch (ui.tab) {
     case 'skills': return skillsPanel(s);
     case 'arsenal': return arsenalPanel(s);
-    case 'vault': return vaultPanel(s);
-    case 'business': return businessPanel(s);
+    case 'vault': return vaultPanel(s, now);
+    case 'business': return businessPanel(s, now);
     case 'market': return marketPanel(s);
     case 'rivals': return rivalsPanel(s, now, ui);
     case 'stats': return statsPanel(s);
@@ -421,11 +468,30 @@ export function awayModal(summary) {
   const lines = [];
   if (summary.income) lines.push(`Your businesses made <b>${fmt(summary.income)}</b>${hours > 2 ? ' (capped at 2 hours)' : ''}.`);
   if (summary.interest) lines.push(`Your vault earned <b>${fmt(summary.interest)}</b> in interest.`);
-  if (summary.raid === 'lost') lines.push(`Rivals raided you and stole <b>${fmt(summary.stolen)}</b> of your cash on hand.`);
+  if (summary.raid === 'lost') lines.push(summary.raidText ?? 'Rivals raided you.');
   if (summary.raid === 'repelled') lines.push('Rivals tried to raid you, but your crew drove them off.');
   if (!lines.length) lines.push('The streets were quiet.');
   return `<div><h2>Welcome back</h2><p>You were away for ${away}.</p>${lines.map((l) => `<p>${l}</p>`).join('')}
     ${btn('close-modal', 'Back to work')}</div>`;
+}
+
+export function encounterModal(s) {
+  const e = s.encounter;
+  const type = encounterType(s);
+  const odds = encounterOdds(s);
+  const flee = fleeOdds(s);
+  const cost = payCost(s);
+  const win = [type.win.cash ? `+${fmt(e.stake * type.win.cash * (1 + perk(s, 'gangLoot')))}` : '', `+${Math.round(e.respect * type.win.respect)} respect`,
+    type.win.heat ? `+${type.win.heat} heat` : ''].filter(Boolean).join(', ');
+  const lose = type.lose.jail ? 'jail' : [type.lose.cashLoss ? `lose ${pct(type.lose.cashLoss)} of your cash (at most ${fmt(e.stake * ENCOUNTER_LOSS_CAP)})` : '', type.lose.heat ? `+${type.lose.heat} heat` : ''].filter(Boolean).join(', ');
+  return `<div class="encounter"><div class="head">${icon(type.icon, 'var(--bad)')}<h2>${type.name}</h2></div>
+    <p>${type.text}</p>
+    <p class="hint">Their power ${e.power}, yours ${power(s)}. Win: ${win}. Lose or get caught fleeing: ${lose}.</p>
+    <div class="choices">
+      ${btn('encounter', `Fight · ${pct(odds)}`, { id: 'fight', cls: chanceClass(odds) })}
+      ${btn('encounter', `Flee · ${pct(flee)}`, { id: 'flee', cls: 'ghost' })}
+      ${btn('encounter', `Pay ${fmt(cost)}`, { id: 'pay', cls: 'ghost', disabled: s.cash < cost })}
+    </div></div>`;
 }
 
 export function winModal(s) {

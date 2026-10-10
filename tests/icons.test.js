@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
-import { MISSIONS, WEAPONS, SKILLS, INVESTMENTS, RIVALS } from '../js/data.js';
+import { MISSIONS, WEAPONS, SKILLS, INVESTMENTS, RIVALS, ENCOUNTERS } from '../js/data.js';
 
-const all = { MISSIONS, WEAPONS, SKILLS, INVESTMENTS, RIVALS };
+const all = { MISSIONS, WEAPONS, SKILLS, INVESTMENTS, RIVALS, ENCOUNTERS };
 
 for (const [group, items] of Object.entries(all)) {
   test(`every entry in ${group} has an icon file`, () => {

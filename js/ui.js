@@ -140,7 +140,7 @@ function jobsPanel(s, now, ui) {
         ${row('Success', pct(c), chanceClass(c))}
         ${row('Payout', `${fmt(m.cash[0] * payout)} – ${fmt(m.cash[1] * payout)}`)}
         ${row('Nerve', cost < m.nerve ? `<s class="was">${m.nerve}</s> ${cost}` : cost)}
-        ${row('Respect / SP', `+${m.respect} / +${m.sp}`)}
+        ${row('Respect / SP', `+${Math.floor(m.respect * OUTGROWN.rewardFactor ** og)} / +${Math.floor(m.sp * OUTGROWN.rewardFactor ** og)}`)}
         ${row('Heat / arrest if failed', `+${Math.round(heat * 10) / 10} / ${pct(arrestChance(s, m))}`)}
         ${row('Worth per nerve', `≈ ${fmt(evPerNerve)}`)}
         ${row('Mastery', mastery)}

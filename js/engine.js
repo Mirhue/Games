@@ -155,7 +155,9 @@ export function jobNerve(state, mission) {
   const cut = (1 - MASTERY.nerveCut * masteryLevel(state, mission.id))
     * (1 - OUTGROWN.nerveCut * outgrownLevel(state, mission))
     * (1 - perk(state, 'nerveCost'));
-  return Math.max(1, Math.round(mission.nerve * cut));
+  // Round up (with a little float slack) so a discounted tier-2 job never
+  // costs the same single nerve as a tier-1 job.
+  return Math.max(1, Math.ceil(mission.nerve * cut - 1e-9));
 }
 
 export function successChance(state, mission) {
@@ -251,7 +253,10 @@ export function doMission(state, missionId, rng, now) {
 
   const s = clone(state);
   const events = [];
-  const heatFactor = OUTGROWN.heatFactor ** outgrownLevel(state, m);
+  const og = outgrownLevel(state, m);
+  const heatFactor = OUTGROWN.heatFactor ** og;
+  const respect = Math.floor(m.respect * OUTGROWN.rewardFactor ** og);
+  const sp = Math.floor(m.sp * OUTGROWN.rewardFactor ** og);
   s.nerve -= cost;
   s.stats.missions += 1;
   const success = rng() < successChance(s, m);
@@ -262,7 +267,7 @@ export function doMission(state, missionId, rng, now) {
     const base = m.cash[0] + rng() * (m.cash[1] - m.cash[0]);
     const cash = Math.round(base * (1 + perk(s, 'payoutBonus')));
     s.stats.successes += 1;
-    events.push(good(`${m.name}: success! +${money(cash)}, +${m.respect} respect, +${m.sp} SP.`));
+    events.push(good(`${m.name}: success! +${money(cash)}, +${respect} respect, +${sp} SP.`));
     if (masteryLevel(state, m.id) === MASTERY.levels.length - 1 && rng() < MASTERY.refundChance) {
       refunded = true;
       s.nerve = Math.min(nerveMax(s), s.nerve + cost);
@@ -272,7 +277,7 @@ export function doMission(state, missionId, rng, now) {
     s.mastery[m.id] = (s.mastery[m.id] ?? 0) + 1;
     const after = masteryLevel(s, m.id);
     if (after > before) events.push(good(`${m.name}: you are now ${MASTERY.levels[after].name}. It costs less nerve and succeeds more often.`));
-    reward(s, { cash, respect: m.respect, sp: m.sp }, events);
+    reward(s, { cash, respect, sp }, events);
   } else {
     arrested = rng() < arrestChance(s, m);
     addHeat(s, heatGained(s, (m.heat / 2) * heatFactor));

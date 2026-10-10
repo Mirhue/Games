@@ -76,6 +76,7 @@ export const OUTGROWN = {
   nerveCut: 0.2,       // per level
   chance: 0.05,        // per level
   heatFactor: 0.5,     // heat multiplier per level
+  rewardFactor: 0.5,   // respect and SP multiplier per level: fillers, not a grind
 };
 
 // Police

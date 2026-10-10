@@ -140,3 +140,30 @@ test('Old Pro does not discount rival attacks', () => {
   const r = attackRival(s, 'rats', () => 0, T0);
   assert.equal(r.state.nerve, s.nerve - ATTACK_NERVE);
 });
+
+test('outgrown jobs pay half the skill points and respect per outgrown level', () => {
+  const m = mission('mugging');   // tier 2: +7 respect, +2 SP
+  const s = atRank(4);            // 2 outgrown levels
+  const r = doMission(s, 'mugging', () => 0, T0);
+  assert.equal(r.state.sp - s.sp, Math.floor(m.sp * 0.25));
+  assert.equal(r.state.respect - s.respect, Math.floor(m.respect * 0.25));
+});
+
+test('a tier-2 job never drops to the same 1 nerve as a tier-1 job (costs round up)', () => {
+  const s = withSkills(mastered(mastered(atRank(5), 'car_breakin', 3), 'pickpocket', 3), { street4: 5 });
+  assert.ok(jobNerve(s, mission('car_breakin')) >= 2, `car break-in costs ${jobNerve(s, mission('car_breakin'))}`);
+});
+
+test('no job beats the best top-tier job on skill points per nerve', () => {
+  for (let rank = 1; rank < RANKS.length; rank++) {
+    const s = withSkills(atRank(rank), { street4: 5 });
+    for (const m of MISSIONS) s.mastery[m.id] = 500;
+    const open = MISSIONS.filter((m) => m.tier <= rank + 1);
+    const spPerNerve = (m) => {
+      const sp = Math.floor(m.sp * OUTGROWN.rewardFactor ** outgrownLevel(s, m));
+      return (successChance(s, m) * sp) / jobNerve(s, m);
+    };
+    const top = Math.max(...open.filter((m) => m.tier === rank + 1).map(spPerNerve));
+    for (const m of open) assert.ok(spPerNerve(m) <= top * 1.2, `rank ${rank}: ${m.id} ${spPerNerve(m).toFixed(2)} SP/nerve vs top ${top.toFixed(2)}`);
+  }
+});

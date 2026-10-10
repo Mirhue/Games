@@ -86,3 +86,34 @@ test('absurd counts and levels in a damaged save are clamped', async () => {
   assert.ok(Number.isFinite(netWorth(m)));
   assert.ok(Date.now() - t < 100, 'netWorth stays fast');
 });
+
+test('a v3 save gets the v4 defaults', () => {
+  const m = migrate({ version: 2, cash: 5, rivals: { rats: { hp: 2, defeated: false } } });
+  assert.equal(m.encounter, null);
+  assert.equal(m.raidFrom, null);
+  assert.deepEqual(m.sabotage, {});
+  assert.equal(m.vaultFrozenUntil, 0);
+  assert.deepEqual(m.rivals.rats, { hp: 2, defeated: false });
+});
+
+test('migrate keeps a valid pending encounter and drops a broken one', () => {
+  const enc = { type: 'mugger', tier: 2, stake: 200, respect: 5, power: 24 };
+  assert.deepEqual(migrate({ version: 2, encounter: enc }).encounter, enc);
+  for (const bad of [{ type: 'alien', tier: 2, stake: 1, respect: 1, power: 1 }, { type: 'mugger', tier: 9, stake: 1, respect: 1, power: 1 },
+    { type: 'mugger', tier: 2, stake: 'x', respect: 1, power: 1 }, 'mugger', 7]) {
+    assert.equal(migrate({ version: 2, encounter: bad }).encounter, null, JSON.stringify(bad));
+  }
+});
+
+test('migrate repairs raidFrom, sabotage and gang records', () => {
+  const m = migrate({
+    version: 2, raidFrom: 'aliens', sabotage: { bar: 5000, nope: 1, hustle: 'x' },
+    rivals: { rats: { hp: 'x', defeated: 'yes', grownMs: -5, quietMs: NaN }, ghosts: { hp: 1 }, triad: 4 },
+  });
+  assert.equal(m.raidFrom, null);
+  assert.deepEqual(m.sabotage, { bar: 5000 });
+  assert.deepEqual(m.rivals, { rats: { hp: 3, defeated: false } });
+  assert.equal(migrate({ version: 2, raidFrom: 'cuervos' }).raidFrom, 'cuervos');
+  assert.deepEqual(migrate({ version: 2, rivals: { rats: { hp: 9, defeated: true, grownMs: 100, quietMs: 5 } } }).rivals.rats,
+    { hp: 3, defeated: true, grownMs: 100, quietMs: 5 });
+});

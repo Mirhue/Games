@@ -1,4 +1,4 @@
-import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS, SKILLS, METALS } from './data.js';
+import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS, SKILLS, METALS, RIVALS, INVESTMENTS, ENCOUNTERS, MISSIONS } from './data.js';
 import { freshMarket } from './market.js';
 
 export const SAVE_KEY = 'kingpin.save';
@@ -119,6 +119,22 @@ export function migrate(obj) {
     else delete out.mastery[id];
   }
   if (!Number.isFinite(out.market.lastStep)) out.market.lastStep = out.lastTick;
+  // Gangs: known ids only, hp within 0..max, timers as non-negative numbers.
+  for (const [id, v] of Object.entries(out.rivals)) {
+    const g = RIVALS.find((r) => r.id === id);
+    if (!g || !isObject(v)) { delete out.rivals[id]; continue; }
+    const rec = { hp: Number.isFinite(v.hp) ? Math.min(g.hp, Math.max(0, Math.round(v.hp))) : g.hp, defeated: v.defeated === true };
+    for (const k of ['grownMs', 'quietMs']) if (Number.isFinite(v[k]) && v[k] > 0) rec[k] = v[k];
+    out.rivals[id] = rec;
+  }
+  if (!RIVALS.some((r) => r.id === out.raidFrom)) out.raidFrom = null;
+  for (const [id, v] of Object.entries(out.sabotage)) {
+    if (!INVESTMENTS.some((i) => i.id === id) || !Number.isFinite(v)) delete out.sabotage[id];
+  }
+  const e = out.encounter;
+  const validEncounter = isObject(e) && ENCOUNTERS.some((x) => x.id === e.type)
+    && MISSIONS.some((m) => m.tier === e.tier) && ['stake', 'respect', 'power'].every((k) => Number.isFinite(e[k]) && e[k] >= 0);
+  if (!validEncounter) out.encounter = null;
   for (const key of ['vault', 'stats']) {
     out[key] = { ...base[key], ...out[key] };
     for (const [k, v] of Object.entries(base[key])) {

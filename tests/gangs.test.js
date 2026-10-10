@@ -231,3 +231,26 @@ test('gangLoot raises loot and fightOdds/raidOdds raise the odds', () => {
   assert.ok(Math.abs(raidOdds(t, gang('rats')) - Math.min(0.95, r + 0.03)) < 1e-9);
 });
 
+
+test('a vault freeze that ends during the tick only skips interest for the frozen part', () => {
+  const s = newState(T0);
+  s.vault = { tier: 3, balance: 100_000 };
+  s.vaultFrozenUntil = T0 + 60_000;
+  const after = tick(s, T0 + HOUR).vault.balance;
+  assert.ok(Math.abs(after - 100_000 * (1 + 0.01 * (HOUR - 60_000) / HOUR)) < 1e-6);
+});
+
+test('a sabotage that ends during the tick only stops income for its own time', () => {
+  const s = newState(T0);
+  s.investments = { hustle: 1 };
+  s.sabotage = { hustle: T0 + 5 * 60_000 };
+  assert.equal(tick(s, T0 + HOUR).cash, 5 * 55);
+});
+
+test('time away brings a raid even with no cash on hand', () => {
+  const s = only('cuervos');
+  s.cash = 0;
+  const { state, summary } = applyOffline(s, T0 + HOUR, () => LOSE);
+  assert.equal(summary.raid, 'lost');
+  assert.equal(state.heat, GANGS.heatRaid);
+});

@@ -143,3 +143,10 @@ test('an encounter never takes more than twice the stake in cash', () => {
   const r = resolveEncounter(s, 'fight', () => 0.999, T0);
   assert.equal(r.state.cash, 10_000_000 - Math.round(s.encounter.stake * ENCOUNTER_LOSS_CAP));
 });
+
+test('an undercover cop seizes at most twice the stake too', () => {
+  const s = pending('cop');
+  s.cash = 10_000_000;
+  const r = resolveEncounter(s, 'fight', () => 0.999, T0);
+  assert.equal(r.state.cash, 10_000_000 - Math.round(s.encounter.stake * ENCOUNTER_LOSS_CAP));
+});

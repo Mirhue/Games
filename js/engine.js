@@ -335,7 +335,7 @@ export const payCost = (state) => Math.round(state.encounter.stake * encounterTy
 function encounterLoss(s, enc, type, now, events) {
   const { lose } = type;
   if (lose.jail) {
-    const seized = Math.round(s.cash * SEIZE_FRACTION);
+    const seized = Math.min(Math.round(s.cash * SEIZE_FRACTION), Math.round(enc.stake * ENCOUNTER_LOSS_CAP));
     s.cash -= seized;
     s.jailUntil = now + jailMs(s, enc.tier);
     s.stats.arrests += 1;
@@ -491,10 +491,18 @@ export function tick(state, now, { incomeCapMs = Infinity } = {}) {
   s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / nerveRegenMs(s));
   s.heat = Math.max(0, s.heat - (elapsed / HEAT_DECAY_MS) * heatDecayRate(s));
   const paidMs = Math.min(elapsed, incomeCapMs);
-  if (!vaultFrozen(state, state.lastTick)) accrueInterest(s, paidMs);
+  // The paid window starts at the last tick; a freeze or sabotage only blocks
+  // the part of it that it overlaps.
+  const from = state.lastTick;
+  const blocked = (until) => clamp((until ?? 0) - from, 0, paidMs);
+  accrueInterest(s, paidMs - blocked(state.vaultFrozenUntil));
+  let earned = 0;
+  for (const inv of INVESTMENTS) {
+    earned += (s.investments[inv.id] ?? 0) * inv.incomePerMin * (paidMs - blocked(s.sabotage[inv.id]));
+  }
   for (const [id, until] of Object.entries(s.sabotage)) if (until <= now) delete s.sabotage[id];
   // Income piles up in a fractional pot; whole dollars move into cash.
-  s.incomePot = (s.incomePot ?? 0) + incomePerMin(s) * paidMs / 60_000;
+  s.incomePot = (s.incomePot ?? 0) + earned * (1 + perk(s, 'incomeBonus')) / 60_000;
   const whole = Math.floor(s.incomePot + 1e-9);
   if (whole > 0) {
     s.cash += whole;
@@ -524,7 +532,7 @@ export function applyOffline(state, now, rng) {
   summary.interest = Math.floor(s.vault.balance - vaultBefore);
   const events = [];
   let out = s;
-  if (elapsed > OFFLINE_RAID_AFTER_MS && s.cash > 0 && activeRaider(s)) {
+  if (elapsed > OFFLINE_RAID_AFTER_MS && activeRaider(s)) {
     const raid = resolveRaid(s, rng, now);
     out = raid.state;
     summary.raid = raid.repelled ? 'repelled' : 'lost';

@@ -34,3 +34,20 @@ test('migrate fills missing fields from a fresh state', () => {
   assert.deepEqual(m.stats, newState(0).stats);
   assert.deepEqual(m.vault, { tier: 0, balance: 0 });
 });
+
+test('migrate repairs wrong-typed fields instead of crashing later', () => {
+  const m = migrate({ version: 1, skills: null, weapons: 'x', investments: [], rivals: 5, log: 'oops', cash: null, nerve: 'NaN' });
+  assert.deepEqual(m.skills, {});
+  assert.deepEqual(m.weapons, {});
+  assert.deepEqual(m.investments, {});
+  assert.deepEqual(m.rivals, {});
+  assert.deepEqual(m.log, []);
+  assert.equal(m.cash, 0);
+  assert.equal(m.nerve, NERVE_MAX_BASE);
+});
+
+test('a repaired save can be ticked and played', async () => {
+  const { tick, applyOffline } = await import('../js/engine.js');
+  const m = deserialize(JSON.stringify({ version: 1, skills: null, investments: null, rivals: null, log: 'oops', lastTick: 0 }));
+  assert.doesNotThrow(() => tick(applyOffline(m, 600_000, () => 0.5).state, 601_000));
+});

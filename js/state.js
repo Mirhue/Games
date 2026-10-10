@@ -42,12 +42,23 @@ export function deserialize(str) {
   return migrate(obj);
 }
 
-// Fill in anything a save from an older version is missing.
+const isObject = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+
+// Fill in anything a save from an older version is missing, and replace
+// fields of the wrong type so a damaged save can't crash the game later.
 export function migrate(obj) {
-  const base = newState(obj.createdAt ?? 0);
+  const base = newState(Number.isFinite(obj.createdAt) ? obj.createdAt : 0);
   const out = { ...base, ...obj, version: SAVE_VERSION };
+  for (const [key, value] of Object.entries(base)) {
+    if (typeof value === 'number' && !Number.isFinite(out[key])) out[key] = value;
+    if (isObject(value) && !isObject(out[key])) out[key] = value;
+    if (Array.isArray(value) && !Array.isArray(out[key])) out[key] = value;
+  }
   for (const key of ['vault', 'stats']) {
-    out[key] = { ...base[key], ...(obj[key] ?? {}) };
+    out[key] = { ...base[key], ...out[key] };
+    for (const [k, v] of Object.entries(base[key])) {
+      if (!Number.isFinite(out[key][k])) out[key][k] = v;
+    }
   }
   return out;
 }

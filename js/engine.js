@@ -315,7 +315,7 @@ export function tick(state, now, { incomeCapMs = Infinity } = {}) {
 // Catches up on time spent away. Returns { state, events, summary }.
 export function applyOffline(state, now, rng) {
   const elapsed = Math.max(0, now - state.lastTick);
-  const summary = { elapsed, income: 0, interest: 0 };
+  const summary = { elapsed, income: 0, interest: 0, notable: false };
   if (elapsed === 0) return { state, events: [], summary };
   const cashBefore = state.cash;
   const vaultBefore = state.vault.balance;
@@ -330,6 +330,8 @@ export function applyOffline(state, now, rng) {
     summary.raid = raid.repelled ? 'repelled' : 'lost';
     summary.stolen = raid.stolen;
   }
+  // Worth a welcome-back popup: a real break, or something happened.
+  summary.notable = elapsed >= OFFLINE_RAID_AFTER_MS || !!summary.raid;
   if (summary.income > 0 || summary.interest > 0) {
     events.push(good(`While you were away your businesses made ${money(summary.income)}${summary.interest > 0 ? ` and the vault earned ${money(summary.interest)}` : ''}.`));
   }

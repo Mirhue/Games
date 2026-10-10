@@ -76,7 +76,7 @@ function catchUp() {
   if (now - state.lastTick > AWAY_GAP_MS) {
     const away = applyOffline(state, now, Math.random);
     state = away.state;
-    showModal(awayModal(away.summary));
+    if (away.summary.notable) showModal(awayModal(away.summary));
   } else {
     state = tick(state, now);
   }

@@ -88,3 +88,18 @@ test('net worth includes what your businesses cost', () => {
   s.cash = 10;
   assert.equal(netWorth(s), 10 + first.basePrice + Math.round(first.basePrice * 1.15));
 });
+
+test('a short absence is not worth a welcome-back popup, a long one is', () => {
+  const s = owning({ [first.id]: 1 });
+  s.respect = 0;
+  assert.equal(applyOffline(s, T0 + 90_000, () => 0.5).summary.notable, false);
+  assert.equal(applyOffline(s, T0 + 10 * MIN, () => 0.5).summary.notable, true);
+});
+
+test('a raid while away is always worth showing', () => {
+  const s = owning({});
+  s.cash = 1000;
+  const { summary } = applyOffline(s, T0 + 6 * MIN, () => 0.999);
+  assert.equal(summary.raid, 'lost');
+  assert.equal(summary.notable, true);
+});

@@ -119,3 +119,24 @@ export const INVESTMENTS = [
   { id: 'casino', name: 'Casino', basePrice: 2_500_000, incomePerMin: 18_000, rank: 4, heatDecay: 0.15 },
   { id: 'shipping', name: 'Shipping company', basePrice: 20_000_000, incomePerMin: 120_000, rank: 5, heatDecay: 0 },
 ];
+
+// Rival gangs. Attack them to wear down their hp; the strongest undefeated
+// rival you have unlocked raids your cash on hand every 10-20 minutes of play.
+export const ATTACK_NERVE = 20;
+export const FIGHT_LOSS_HEAT = 10;
+export const FIGHT_LOSS_CASH = 0.1;
+export const RAID_MIN_MS = 10 * 60_000;
+export const RAID_MAX_MS = 20 * 60_000;
+export const RAID_STEAL = [0.1, 0.3];
+export const OFFLINE_RAID_AFTER_MS = 5 * 60_000;
+export const RIVALS = [
+  { id: 'rats', name: 'The Dock Rats', boss: 'Fat Tony', rank: 2, power: 60, hp: 3,
+    loot: [3_000, 8_000], respect: 60, defeatRespect: 800, raidRespect: 20 },
+  { id: 'cuervos', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
+    loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, raidRespect: 120 },
+  { id: 'volkov', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 1_200, hp: 8,
+    loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, raidRespect: 800 },
+];
+
+// Win condition: all rivals defeated plus these thresholds.
+export const GODFATHER = { respect: 150_000, netWorth: 500_000_000 };

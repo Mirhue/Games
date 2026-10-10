@@ -62,6 +62,7 @@ test('businesses that launder money speed up heat decay', () => {
 
 test('offline income is capped at 2 hours but nerve, heat and jail use the full time', () => {
   const s = owning({ [first.id]: 1 });
+  s.respect = 0;   // no rival can raid a street rat
   s.nerve = 0;
   s.heat = 80;
   s.jailUntil = T0 + 60_000;

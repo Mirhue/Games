@@ -1,4 +1,4 @@
-import { SAVE_VERSION, NERVE_MAX_BASE } from './data.js';
+import { SAVE_VERSION, NERVE_MAX_BASE, RAID_MIN_MS } from './data.js';
 
 export const SAVE_KEY = 'kingpin.save';
 
@@ -18,7 +18,7 @@ export function newState(now) {
     vault: { tier: 0, balance: 0 },
     investments: {},
     rivals: {},
-    nextRaidAt: 0,
+    raidIn: RAID_MIN_MS,     // ms of play until the next raid
     incomePot: 0,
     stats: { missions: 0, successes: 0, arrests: 0, raidsSuffered: 0, raidsRepelled: 0, earned: 0, playMs: 0 },
     won: false,

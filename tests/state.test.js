@@ -52,11 +52,17 @@ test('a repaired save can be ticked and played', async () => {
   assert.doesNotThrow(() => tick(applyOffline(m, 600_000, () => 0.5).state, 601_000));
 });
 
-test('a v1 save with true flags migrates to levels and counts', () => {
-  const m = migrate({ version: 1, skills: { stealth1: true, muscle2: true }, weapons: { pistol: true } });
+test('a v1 save keeps its weapons as one copy each', () => {
+  const m = migrate({ version: 1, weapons: { pistol: true, knife: true } });
   assert.equal(m.version, SAVE_VERSION);
-  assert.deepEqual(m.skills, { stealth1: 1, muscle2: 1 });
-  assert.deepEqual(m.weapons, { pistol: 1 });
+  assert.deepEqual(m.weapons, { pistol: 1, knife: 1 });
+});
+
+test('a v1 save gets every skill point back to re-spend in the new tree', () => {
+  // v1 node costs by position in a branch: 5, 20, 60, 180, 500.
+  const m = migrate({ version: 1, sp: 7, skills: { stealth1: true, stealth2: true, muscle1: true, brains5: true } });
+  assert.deepEqual(m.skills, {});
+  assert.equal(m.sp, 7 + 5 + 20 + 5 + 500);
 });
 
 test('migrating a v2 save changes nothing', () => {

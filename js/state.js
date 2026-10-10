@@ -42,6 +42,9 @@ export function deserialize(str) {
   return migrate(obj);
 }
 
+// What each skill node cost in v1, by its position in the branch.
+const V1_SKILL_COSTS = [5, 20, 60, 180, 500];
+
 const isObject = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
 
 // Fill in anything a save from an older version is missing, and replace
@@ -54,7 +57,16 @@ export function migrate(obj) {
     if (isObject(value) && !isObject(out[key])) out[key] = value;
     if (Array.isArray(value) && !Array.isArray(out[key])) out[key] = value;
   }
-  // v1 stored owned skills and weapons as `true`; v2 stores levels and counts.
+  // v1 → v2: the skill tree was redesigned with levels, so v1 skills are
+  // reset and every skill point spent on them is refunded to re-spend.
+  if ((obj.version ?? 1) < 2) {
+    for (const id of Object.keys(out.skills)) {
+      const idx = Number(id.slice(-1));
+      out.sp += V1_SKILL_COSTS[idx - 1] ?? 0;
+    }
+    out.skills = {};
+  }
+  // v1 stored owned weapons as `true`; v2 stores levels and counts.
   for (const key of ['skills', 'weapons']) {
     for (const [id, v] of Object.entries(out[key])) {
       if (v === true) out[key][id] = 1;

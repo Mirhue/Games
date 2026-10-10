@@ -87,3 +87,12 @@ test('net worth counts what you paid for your crew weapons', async () => {
   s = arm(s, 'knife', 2);
   assert.equal(netWorth(s), before);
 });
+
+test('fifty silenced pistols still leave a quarter of the job heat', async () => {
+  const { doMission } = await import('../js/engine.js');
+  const s = loaded();
+  s.weapons.pistol = 50;
+  assert.equal(perk(s, 'heatReduction'), PERK_CAPS.heatReduction);
+  const r = doMission(s, 'pickpocket', () => 0, T0);
+  assert.ok(Math.abs(r.state.heat - mission('pickpocket').heat * (1 - PERK_CAPS.heatReduction)) < 1e-9);
+});

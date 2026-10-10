@@ -50,7 +50,8 @@ npm run sim       # balance simulation: node tools/sim.js [hours] [seeds] [style
 
 The simulation runs five bot styles: balanced, weapons-first, businesses-first, nerve/heat-perks-first, and a rival rusher. Current results (5 seeds, active play only):
 - **Balanced:** Thief after about 10 minutes, each later rank about 1.6–2.5× slower, Kingpin after about 3.2 hours, Godfather after about 9 hours.
-- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot (rival rush −7%, businesses +15%, nerve perks +22%, weapons +31%), so no single option is overpowered.
+- **Other styles:** none of them reaches Godfather more than 15% faster than the balanced bot, so no single option is overpowered. The rival rush is 7% faster; businesses-first is 15% slower, nerve-perks-first 20% slower, and weapons-first 31% slower.
+- **Old saves:** a save from before the skill levels existed is reset to an empty skill tree, and every skill point spent is refunded to re-spend.
 
 ## Credits
 

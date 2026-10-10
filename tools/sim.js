@@ -68,7 +68,9 @@ function options(s, now, style) {
     const price = weaponPrice(s, w.id);
     const limit = style === 'nerve' && hasNervePerk(w.perks) ? 0.3 : share;
     if (w.rank <= r && price <= spendable(s) * limit) {
-      out.weapons.push(() => buyWeapon(raise(s, price, now), w.id, now));
+      const buy = () => buyWeapon(raise(s, price, now), w.id, now);
+      buy.weapon = w;
+      out.weapons.push(buy);
     }
   }
 
@@ -92,7 +94,7 @@ function options(s, now, style) {
     ?? ['skills', 'weapons', 'vault', 'business'];
   if (style === 'nerve') {
     // Perk sources first, whatever their category.
-    const perkyWeapons = out.weapons.filter((_, i) => hasNervePerk([...WEAPONS].reverse()[i]?.perks));
+    const perkyWeapons = out.weapons.filter((buy) => hasNervePerk(buy.weapon.perks));
     return [...out.skills, ...perkyWeapons, ...out.business, ...order.flatMap((c) => out[c])];
   }
   return order.flatMap((c) => out[c]);

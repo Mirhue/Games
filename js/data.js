@@ -13,6 +13,7 @@ export const PERK_CAPS = {
   heatDecay: 2,        // heat decays at most 3× as fast
   heatReduction: 0.75, // jobs give at least 25% of their heat
   nerveMax: 150,       // at most +150 max nerve
+  nerveCost: 0.3,      // jobs cost at most 30% less nerve from perks
   bailDiscount: 0.9,
 };
 
@@ -113,6 +114,7 @@ const SKILL_ICONS = {
   street1: 'sprint',
   street2: 'snowflake-1',
   street3: 'lungs',
+  street4: 'cigar',
 };
 const node = (branch, idx, name, effects, { maxLevel = MAX_LEVELS[idx - 1], baseCost = BASE_COSTS[idx - 1] } = {}) =>
   ({ id: `${branch}${idx}`, icon: SKILL_ICONS[`${branch}${idx}`], branch, idx, name, maxLevel, baseCost, effects });
@@ -145,6 +147,7 @@ export const SKILLS = [
   node('street', 1, 'Stamina', { nerveRegen: 0.06 }, { maxLevel: 5, baseCost: 8 }),
   node('street', 2, 'Cool Head', { heatDecay: 0.1 }, { maxLevel: 5, baseCost: 25 }),
   node('street', 3, 'Second Wind', { nerveMax: 10 }, { maxLevel: 3, baseCost: 80 }),
+  node('street', 4, 'Old Pro', { nerveCost: 0.03 }, { maxLevel: 5, baseCost: 150 }),
 ];
 
 // Weapons arm your crew: every copy adds its power to power and defense,

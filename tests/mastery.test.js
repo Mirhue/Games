@@ -103,3 +103,40 @@ test('only Master jobs refund nerve, and never above max nerve', () => {
 test('on average no job gives back as much nerve as it costs', () => {
   assert.ok(MASTERY.refundChance < 1);
 });
+
+import { buySkill, attackRival } from '../js/engine.js';
+import { SKILLS, PERK_CAPS, ATTACK_NERVE } from '../js/data.js';
+
+const oldPro = () => SKILLS.find((k) => k.id === 'street4');
+const withSkills = (s, levels) => { s.skills = { ...s.skills, ...levels }; return s; };
+
+test('Old Pro is the 4th Street Life skill and needs Second Wind first', () => {
+  const k = oldPro();
+  assert.equal(k.name, 'Old Pro');
+  assert.equal(k.maxLevel, 5);
+  assert.equal(k.effects.nerveCost, 0.03);
+  const s = newState(T0);
+  s.sp = 1e6;
+  s.skills = { street1: 1, street2: 1 };
+  assert.equal(buySkill(s, 'street4', T0).reason, 'order');
+  s.skills.street3 = 1;
+  assert.equal(buySkill(s, 'street4', T0).ok, true);
+});
+
+test('Old Pro cuts job nerve by 3% per level, on top of mastery and outgrown', () => {
+  const m = mission('bank');   // 20 nerve
+  const s = withSkills(mastered(atRank(4), 'bank', 2), { street4: 5 });
+  assert.equal(jobNerve(s, m), Math.round(20 * (1 - 2 * MASTERY.nerveCut) * (1 - 5 * 0.03)));
+});
+
+test('the nerve-cost perk is capped at 30%', () => {
+  assert.equal(PERK_CAPS.nerveCost, 0.3);
+  const s = withSkills(atRank(4), { street4: 50 });
+  assert.equal(jobNerve(s, mission('bank')), Math.round(20 * (1 - 0.3)));
+});
+
+test('Old Pro does not discount rival attacks', () => {
+  const s = withSkills(atRank(5), { street4: 5 });
+  const r = attackRival(s, 'rats', () => 0, T0);
+  assert.equal(r.state.nerve, s.nerve - ATTACK_NERVE);
+});

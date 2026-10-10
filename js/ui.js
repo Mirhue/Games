@@ -43,6 +43,7 @@ const PERK_TEXT = {
   bailDiscount: (v) => `−${pct1(v)} bail`,
   nerveMax: (v) => `+${v} max nerve`,
   nerveRegen: (v) => `+${pct1(v)} nerve regen`,
+  nerveCost: (v) => `−${pct1(v)} job nerve`,
   heatDecay: (v) => `+${pct1(v)} heat decay`,
   power: (v) => `+${v} power`,
   defense: (v) => `+${v} defense`,

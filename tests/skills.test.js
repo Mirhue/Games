@@ -21,7 +21,7 @@ test('four branches with the spec max levels', () => {
   for (const b of ['stealth', 'muscle', 'brains']) {
     assert.deepEqual(SKILLS.filter((k) => k.branch === b).map((k) => k.maxLevel), [5, 5, 5, 3, 1], b);
   }
-  assert.deepEqual(SKILLS.filter((k) => k.branch === 'street').map((k) => k.maxLevel), [5, 5, 3]);
+  assert.deepEqual(SKILLS.filter((k) => k.branch === 'street').map((k) => k.maxLevel), [5, 5, 3, 5]);
 });
 
 test('a node unlocks once the previous node reaches level 1', () => {

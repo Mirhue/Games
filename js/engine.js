@@ -149,7 +149,8 @@ export function outgrownLevel(state, mission) {
 // The nerve a job costs you now: mastery and outgrown discounts multiply.
 export function jobNerve(state, mission) {
   const cut = (1 - MASTERY.nerveCut * masteryLevel(state, mission.id))
-    * (1 - OUTGROWN.nerveCut * outgrownLevel(state, mission));
+    * (1 - OUTGROWN.nerveCut * outgrownLevel(state, mission))
+    * (1 - perk(state, 'nerveCost'));
   return Math.max(1, Math.round(mission.nerve * cut));
 }
 

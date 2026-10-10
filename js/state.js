@@ -54,6 +54,13 @@ export function migrate(obj) {
     if (isObject(value) && !isObject(out[key])) out[key] = value;
     if (Array.isArray(value) && !Array.isArray(out[key])) out[key] = value;
   }
+  // v1 stored owned skills and weapons as `true`; v2 stores levels and counts.
+  for (const key of ['skills', 'weapons']) {
+    for (const [id, v] of Object.entries(out[key])) {
+      if (v === true) out[key][id] = 1;
+      else if (!Number.isFinite(v) || v < 1) delete out[key][id];
+    }
+  }
   for (const key of ['vault', 'stats']) {
     out[key] = { ...base[key], ...out[key] };
     for (const [k, v] of Object.entries(base[key])) {

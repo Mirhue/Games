@@ -1,10 +1,20 @@
 // All content and tuning numbers for Kingpin. No logic lives here.
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const NERVE_MAX_BASE = 100;
 export const NERVE_REGEN_MS = 6000;
 export const HEAT_DECAY_MS = 10000;
 export const OFFLINE_CAP_MS = 2 * 60 * 60 * 1000;
+
+// Perks from skills, weapons and businesses add up; these caps apply to the
+// total from all sources together so no combination becomes free.
+export const PERK_CAPS = {
+  nerveRegen: 1,       // nerve regenerates at most 2× as fast
+  heatDecay: 2,        // heat decays at most 3× as fast
+  heatReduction: 0.75, // jobs give at least 25% of their heat
+  nerveMax: 150,       // at most +150 max nerve
+  bailDiscount: 0.9,
+};
 
 // Ranks are reached by Respect. Rank i unlocks mission tier i + 1.
 // Godfather is not in this list: it is granted by the win condition.
@@ -108,16 +118,15 @@ export const VAULTS = [
 ];
 
 // Investments earn cash per minute. The n-th copy costs basePrice × 1.15^n.
-// heatDecay: each copy speeds up heat decay by this fraction (laundering).
+// perks are per copy (see PERK_CAPS), e.g. heatDecay: laundering money.
 export const INVESTMENT_GROWTH = 1.15;
-export const HEAT_DECAY_BONUS_CAP = 2;   // decay at most 3× the normal speed
 export const INVESTMENTS = [
-  { id: 'hustle', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0, heatDecay: 0 },
-  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 70, rank: 1, heatDecay: 0.05 },
-  { id: 'bar', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2, heatDecay: 0 },
-  { id: 'nightclub', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3, heatDecay: 0 },
-  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 32_000, rank: 4, heatDecay: 0.15 },
-  { id: 'shipping', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5, heatDecay: 0 },
+  { id: 'hustle', name: 'Corner hustle', basePrice: 200, incomePerMin: 5, rank: 0 },
+  { id: 'laundromat', name: 'Laundromat', basePrice: 3_000, incomePerMin: 70, rank: 1, perks: { heatDecay: 0.05 } },
+  { id: 'bar', name: 'Dive bar', basePrice: 25_000, incomePerMin: 550, rank: 2 },
+  { id: 'nightclub', name: 'Nightclub', basePrice: 200_000, incomePerMin: 4_200, rank: 3 },
+  { id: 'casino', name: 'Casino', basePrice: 1_600_000, incomePerMin: 32_000, rank: 4, perks: { heatDecay: 0.15 } },
+  { id: 'shipping', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 230_000, rank: 5 },
 ];
 
 // Rival gangs. Attack them to wear down their hp; the strongest undefeated

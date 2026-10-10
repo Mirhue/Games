@@ -5,7 +5,7 @@ import {
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
   JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
   BASE_POWER, WEAPON_BONUS_CAP, WEAPONS, VAULTS,
-  INVESTMENTS, INVESTMENT_GROWTH, HEAT_DECAY_BONUS_CAP, OFFLINE_CAP_MS,
+  INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
   OFFLINE_RAID_AFTER_MS, GODFATHER,
 } from './data.js';
@@ -28,10 +28,24 @@ export function rankName(state) {
   return state.won ? 'Godfather' : RANKS[rankIndex(state)].name;
 }
 
-export function skillEffect(state, key) {
+// Sum of a perk from every source: skill levels, weapon copies, business copies.
+export function effect(state, key) {
   let total = 0;
-  for (const k of SKILLS) if (state.skills[k.id]) total += k.effects[key] ?? 0;
+  for (const k of SKILLS) total += (state.skills[k.id] ?? 0) * (k.effects[key] ?? 0);
+  for (const w of WEAPONS) total += (state.weapons[w.id] ?? 0) * (w.perks?.[key] ?? 0);
+  for (const inv of INVESTMENTS) total += (state.investments[inv.id] ?? 0) * (inv.perks?.[key] ?? 0);
   return total;
+}
+
+export const capped = (key, value) => Math.min(PERK_CAPS[key] ?? Infinity, value);
+
+// The perk value the rules use: the sum, limited by its cap.
+export const perk = (state, key) => capped(key, effect(state, key));
+
+export const skillEffect = perk;  // v1 name, kept for callers
+
+export function nerveRegenMs(state) {
+  return NERVE_REGEN_MS / (1 + perk(state, 'nerveRegen'));
 }
 
 export function buySkill(state, skillId, now) {
@@ -43,7 +57,7 @@ export function buySkill(state, skillId, now) {
   if (state.sp < k.cost) return refuse(state, 'sp', `You need ${k.cost} SP.`);
   const s = clone(state);
   s.sp -= k.cost;
-  s.skills[k.id] = true;
+  s.skills[k.id] = 1;
   const events = [good(`You learned ${k.name}.`)];
   addLog(s, events, now);
   return { ok: true, state: s, events };
@@ -60,11 +74,11 @@ export function weaponBonus(state) {
 }
 
 export function power(state) {
-  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + skillEffect(state, 'power');
+  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + perk(state, 'power');
 }
 
 export function defense(state) {
-  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + skillEffect(state, 'defense');
+  return BASE_POWER + (bestWeapon(state)?.power ?? 0) + perk(state, 'defense');
 }
 
 export function buyWeapon(state, weaponId, now) {
@@ -75,19 +89,19 @@ export function buyWeapon(state, weaponId, now) {
   if (state.cash < w.price) return refuse(state, 'cash', `You need ${money(w.price)} in cash.`);
   const s = clone(state);
   s.cash -= w.price;
-  s.weapons[w.id] = true;
+  s.weapons[w.id] = 1;
   const events = [good(`You bought a ${w.name}.`)];
   addLog(s, events, now);
   return { ok: true, state: s, events };
 }
 
 export function nerveMax(state) {
-  return NERVE_MAX_BASE + skillEffect(state, 'nerveMax');
+  return NERVE_MAX_BASE + perk(state, 'nerveMax');
 }
 
 export function successChance(state, mission) {
   const chance = mission.baseChance
-    + skillEffect(state, `${mission.type}Chance`)
+    + perk(state, `${mission.type}Chance`)
     + (mission.type === 'muscle' ? weaponBonus(state) : 0)
     - state.heat * HEAT_CHANCE_PENALTY;
   return clamp(chance, 0.05, 0.95);
@@ -107,14 +121,14 @@ export function netWorth(state) {
 
 export const inJail = (state, now) => state.jailUntil > now;
 
-const heatGained = (s, amount) => amount * (1 - Math.min(0.9, skillEffect(s, 'heatReduction')));
+const heatGained = (s, amount) => amount * (1 - perk(s, 'heatReduction'));
 
 function addHeat(s, amount) {
   s.heat = clamp(s.heat + amount, 0, HEAT_MAX);
 }
 
 export function bailCost(state) {
-  const discount = Math.min(0.9, skillEffect(state, 'bailDiscount'));
+  const discount = perk(state, 'bailDiscount');
   return Math.round(Math.max(BAIL_MIN, netWorth(state) * BAIL_NET_WORTH_FRACTION) * (1 - discount));
 }
 
@@ -178,7 +192,7 @@ export function doMission(state, missionId, rng, now) {
   if (success) {
     addHeat(s, heatGained(s, m.heat));
     const base = m.cash[0] + rng() * (m.cash[1] - m.cash[0]);
-    const cash = Math.round(base * (1 + skillEffect(s, 'payoutBonus')));
+    const cash = Math.round(base * (1 + perk(s, 'payoutBonus')));
     s.stats.successes += 1;
     events.push(good(`${m.name}: success! +${money(cash)}, +${m.respect} respect, +${m.sp} SP.`));
     reward(s, { cash, respect: m.respect, sp: m.sp }, events);
@@ -274,13 +288,11 @@ export function buyInvestment(state, invId, now) {
 export function incomePerMin(state) {
   let total = 0;
   for (const inv of INVESTMENTS) total += (state.investments[inv.id] ?? 0) * inv.incomePerMin;
-  return total * (1 + skillEffect(state, 'incomeBonus'));
+  return total * (1 + perk(state, 'incomeBonus'));
 }
 
 export function heatDecayRate(state) {
-  let bonus = 0;
-  for (const inv of INVESTMENTS) bonus += (state.investments[inv.id] ?? 0) * inv.heatDecay;
-  return 1 + Math.min(HEAT_DECAY_BONUS_CAP, bonus);
+  return 1 + perk(state, 'heatDecay');
 }
 
 // Advances time-based systems and returns a new state.
@@ -290,7 +302,7 @@ export function tick(state, now, { incomeCapMs = Infinity } = {}) {
   if (elapsed <= 0) return state;
   const s = clone(state);
   s.lastTick = now;
-  s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / NERVE_REGEN_MS);
+  s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / nerveRegenMs(s));
   s.heat = Math.max(0, s.heat - (elapsed / HEAT_DECAY_MS) * heatDecayRate(s));
   const paidMs = Math.min(elapsed, incomeCapMs);
   accrueInterest(s, paidMs);

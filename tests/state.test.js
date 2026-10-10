@@ -16,7 +16,7 @@ test('newState starts a broke street rat with full nerve', () => {
 test('serialize/deserialize round-trips the state', () => {
   const s = newState(1000);
   s.cash = 1234;
-  s.skills.stealth1 = true;
+  s.skills.stealth1 = 2;
   assert.deepEqual(deserialize(serialize(s)), s);
 });
 
@@ -50,4 +50,19 @@ test('a repaired save can be ticked and played', async () => {
   const { tick, applyOffline } = await import('../js/engine.js');
   const m = deserialize(JSON.stringify({ version: 1, skills: null, investments: null, rivals: null, log: 'oops', lastTick: 0 }));
   assert.doesNotThrow(() => tick(applyOffline(m, 600_000, () => 0.5).state, 601_000));
+});
+
+test('a v1 save with true flags migrates to levels and counts', () => {
+  const m = migrate({ version: 1, skills: { stealth1: true, muscle2: true }, weapons: { pistol: true } });
+  assert.equal(m.version, SAVE_VERSION);
+  assert.deepEqual(m.skills, { stealth1: 1, muscle2: 1 });
+  assert.deepEqual(m.weapons, { pistol: 1 });
+});
+
+test('migrating a v2 save changes nothing', () => {
+  const s = newState(5);
+  s.skills = { stealth1: 3 };
+  s.weapons = { knife: 4 };
+  assert.deepEqual(migrate(structuredClone(s)), s);
+  assert.equal(SAVE_VERSION, 2);
 });

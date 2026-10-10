@@ -30,7 +30,7 @@ test('a skill needs enough SP and deducts it', () => {
   const r = buySkill(s, k.id, T0);
   assert.equal(r.ok, true);
   assert.equal(r.state.sp, 0);
-  assert.equal(r.state.skills[k.id], true);
+  assert.equal(r.state.skills[k.id], 1);
   assert.equal(buySkill(r.state, k.id, T0).reason, 'owned');
 });
 

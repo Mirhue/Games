@@ -192,7 +192,7 @@ function businessPanel(s) {
     html += `<div class="card ${locked ? 'locked' : count ? 'owned' : ''}">
       <div class="title">${inv.name}${count ? ` ×${count}` : ''}</div>
       ${row('Income each', `${fmt(inv.incomePerMin * bonus)}/min`)}
-      ${inv.heatDecay ? row('Launders heat', `+${pct(inv.heatDecay)} decay`) : ''}
+      ${inv.perks?.heatDecay ? row('Launders heat', `+${pct(inv.perks.heatDecay)} decay`) : ''}
       ${row('Price', fmt(price))}
       ${row('Pays back in', `${Math.ceil(price / (inv.incomePerMin * bonus))} min`)}
       ${locked ? row('Requires', RANKS[inv.rank].name) : ''}

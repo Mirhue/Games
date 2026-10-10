@@ -51,7 +51,7 @@ test('tick pays income into cash as whole dollars', () => {
 });
 
 test('businesses that launder money speed up heat decay', () => {
-  const launder = INVESTMENTS.find((i) => i.heatDecay > 0);
+  const launder = INVESTMENTS.find((i) => (i.perks?.heatDecay ?? 0) > 0);
   const s = owning({ [launder.id]: 2 });
   assert.ok(heatDecayRate(s) > 1);
   s.heat = 50;

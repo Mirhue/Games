@@ -172,9 +172,9 @@ export const VAULTS = [
   { name: 'No vault', price: 0, capacity: 0, fee: 0, interestPerHour: 0 },
   { name: 'Shoebox', price: 50, capacity: 1_000, fee: 0, interestPerHour: 0 },
   { name: 'Safehouse', price: 2_500, capacity: 30_000, fee: 0, interestPerHour: 0 },
-  { name: 'Bank account', price: 25_000, capacity: 600_000, fee: 0.02, interestPerHour: 0.005 },
-  { name: 'Offshore account', price: 300_000, capacity: 12_000_000, fee: 0.03, interestPerHour: 0.01 },
-  { name: 'Swiss vault', price: 4_000_000, capacity: 600_000_000, fee: 0.05, interestPerHour: 0.015 },
+  { name: 'Bank account', price: 25_000, capacity: 600_000, fee: 0.01, interestPerHour: 0.01 },
+  { name: 'Offshore account', price: 300_000, capacity: 12_000_000, fee: 0.01, interestPerHour: 0.015 },
+  { name: 'Swiss vault', price: 4_000_000, capacity: 600_000_000, fee: 0.02, interestPerHour: 0.02 },
 ];
 
 // Investments earn cash per minute. The n-th copy costs basePrice × 1.15^n.

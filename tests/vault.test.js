@@ -82,3 +82,11 @@ test('interest accrues over time but never above capacity', () => {
   const full = withVault(interestTier, 0, v.capacity - 1);
   assert.equal(tick(full, T0 + 10 * HOUR).vault.balance, v.capacity);
 });
+
+test('every paid vault earns its deposit fee back within an hour', () => {
+  for (const v of VAULTS.slice(1)) {
+    if (v.fee === 0) continue;
+    assert.ok(v.interestPerHour > 0, `${v.name} charges a fee but pays no interest`);
+    assert.ok(v.fee / v.interestPerHour <= 1, `${v.name}: ${(v.fee / v.interestPerHour).toFixed(1)} h to break even`);
+  }
+});

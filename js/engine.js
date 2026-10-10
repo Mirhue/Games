@@ -11,7 +11,7 @@ import {
   BASE_POWER, WEAPON_BONUS_CAP, WEAPON_GROWTH, WEAPONS, VAULTS,
   INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
-  OFFLINE_RAID_AFTER_MS, GODFATHER,
+  OFFLINE_RAID_AFTER_MS, GODFATHER, GANGS,
 } from './data.js';
 
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -322,9 +322,13 @@ export function upgradeVault(state, now) {
   return { ok: true, state: s, events };
 }
 
+export const vaultFrozen = (state, now) => (state.vaultFrozenUntil ?? 0) > now;
+const frozenRefusal = (state) => refuse(state, 'frozen', 'Ghost Net hacked your vault. It is frozen for now.');
+
 export function deposit(state, amount, now) {
   const v = VAULTS[state.vault.tier];
   if (state.vault.tier === 0) return refuse(state, 'novault', 'You need a place to stash your money first.');
+  if (vaultFrozen(state, now)) return frozenRefusal(state);
   if (!(amount > 0) || state.cash < 1) return refuse(state, 'amount', 'Nothing to deposit.');
   const space = v.capacity - state.vault.balance;
   if (space < 1) return refuse(state, 'full', `Your ${v.name} is full.`);
@@ -342,6 +346,7 @@ export function deposit(state, amount, now) {
 }
 
 export function withdraw(state, amount, now) {
+  if (vaultFrozen(state, now)) return frozenRefusal(state);
   if (!(amount > 0)) return refuse(state, 'amount', 'Nothing to withdraw.');
   if (state.vault.balance < 1) return refuse(state, 'empty', 'Your vault is empty.');
   const taken = Math.floor(Math.min(amount, state.vault.balance));
@@ -381,9 +386,14 @@ export function buyInvestment(state, invId, now) {
   return { ok: true, state: s, events };
 }
 
-export function incomePerMin(state) {
+export const sabotaged = (state, invId, now) => (state.sabotage?.[invId] ?? 0) > now;
+
+// Income per minute right now; a business type the Triad sabotaged earns nothing.
+export function incomePerMin(state, now = state.lastTick) {
   let total = 0;
-  for (const inv of INVESTMENTS) total += (state.investments[inv.id] ?? 0) * inv.incomePerMin;
+  for (const inv of INVESTMENTS) {
+    if (!sabotaged(state, inv.id, now)) total += (state.investments[inv.id] ?? 0) * inv.incomePerMin;
+  }
   return total * (1 + perk(state, 'incomeBonus'));
 }
 
@@ -401,7 +411,8 @@ export function tick(state, now, { incomeCapMs = Infinity } = {}) {
   s.nerve = Math.min(nerveMax(s), s.nerve + elapsed / nerveRegenMs(s));
   s.heat = Math.max(0, s.heat - (elapsed / HEAT_DECAY_MS) * heatDecayRate(s));
   const paidMs = Math.min(elapsed, incomeCapMs);
-  accrueInterest(s, paidMs);
+  if (!vaultFrozen(state, state.lastTick)) accrueInterest(s, paidMs);
+  for (const [id, until] of Object.entries(s.sabotage)) if (until <= now) delete s.sabotage[id];
   // Income piles up in a fractional pot; whole dollars move into cash.
   s.incomePot = (s.incomePot ?? 0) + incomePerMin(s) * paidMs / 60_000;
   const whole = Math.floor(s.incomePot + 1e-9);
@@ -413,6 +424,7 @@ export function tick(state, now, { incomeCapMs = Infinity } = {}) {
   if (incomeCapMs === Infinity) {
     s.stats.playMs += elapsed;
     if (activeRaider(s) && !inJail(state, state.lastTick)) s.raidIn = Math.max(0, s.raidIn - elapsed);
+    gangsTick(s, elapsed);
   }
   const events = [];
   winCheck(s, events);
@@ -451,31 +463,70 @@ export function applyOffline(state, now, rng) {
 
 export function rivalState(state, rivalId) {
   const r = RIVALS.find((x) => x.id === rivalId);
-  return state.rivals[rivalId] ?? { hp: r.hp, defeated: false };
+  return { hp: r.hp, defeated: false, grownMs: 0, quietMs: 0, ...state.rivals[rivalId] };
 }
 
-const rivalUnlocked = (state, r) => r.rank <= rankIndex(state);
+// A gang can be fought (and raids) from its rank on; the Commission only
+// once every other gang is gone.
+export function rivalUnlocked(state, r) {
+  if (r.rank > rankIndex(state)) return false;
+  return !r.last || RIVALS.every((g) => g === r || rivalState(state, g.id).defeated);
+}
+
+const rivalActive = (state, r) => rivalUnlocked(state, r) && !rivalState(state, r.id).defeated;
+
+// A gang's power grows while you leave it alone (play time only).
+export function rivalPower(state, r) {
+  const growth = Math.min(GANGS.growthMax, GANGS.growthPerHour * rivalState(state, r.id).grownMs / 3_600_000);
+  return Math.round(r.power * (1 + growth));
+}
+
+// Active play: gangs grow, and hurt gangs heal 1 hp per healMs without a fight.
+function gangsTick(s, elapsed) {
+  for (const r of RIVALS) {
+    if (!rivalActive(s, r)) continue;
+    const rs = rivalState(s, r.id);
+    rs.grownMs += elapsed;
+    if (rs.hp < r.hp) {
+      rs.quietMs += elapsed;
+      while (rs.quietMs >= GANGS.healMs && rs.hp < r.hp) {
+        rs.hp += 1;
+        rs.quietMs -= GANGS.healMs;
+      }
+    }
+    if (rs.hp >= r.hp) rs.quietMs = 0;
+    s.rivals[r.id] = rs;
+  }
+}
 
 export function fightOdds(state, rival) {
-  return clamp(power(state) / (power(state) + rival.power), 0.05, 0.95);
+  const p = power(state);
+  return clamp(p / (p + rivalPower(state, rival)) + perk(state, 'fightOdds'), 0.05, 0.95);
 }
 
 export function attackRival(state, rivalId, rng, now) {
   const r = RIVALS.find((x) => x.id === rivalId);
   if (!r) return refuse(state, 'unknown', 'Unknown gang.');
-  if (!rivalUnlocked(state, r)) return refuse(state, 'locked', `You need to be a ${RANKS[r.rank].name} to take on ${r.name}.`);
+  if (!rivalUnlocked(state, r)) {
+    return refuse(state, 'locked', r.last && r.rank <= rankIndex(state)
+      ? `${r.name} only deal with whoever is left standing. Wipe out the other gangs first.`
+      : `You need to be a ${RANKS[r.rank].name} to take on ${r.name}.`);
+  }
   if (rivalState(state, rivalId).defeated) return refuse(state, 'defeated', `${r.name} are history.`);
   if (inJail(state, now)) return refuse(state, 'jail', "You're in jail.");
+  if (state.encounter) return refuse(state, 'encounter', 'Deal with the trouble in front of you first.');
   if (state.nerve < ATTACK_NERVE) return refuse(state, 'nerve', `You need ${ATTACK_NERVE} nerve to start a war.`);
 
   const s = clone(state);
   const events = [];
   s.nerve -= ATTACK_NERVE;
   const won = rng() < fightOdds(s, r);
+  const rs = rivalState(s, rivalId);
+  rs.quietMs = 0;
   if (won) {
-    const rs = { ...rivalState(s, rivalId) };
     rs.hp -= 1;
-    const loot = Math.round(r.loot[0] + rng() * (r.loot[1] - r.loot[0]));
+    rs.grownMs = 0;
+    const loot = Math.round((r.loot[0] + rng() * (r.loot[1] - r.loot[0])) * (1 + perk(s, 'gangLoot')));
     let respect = r.respect;
     let sp = 0;
     events.push(good(`You hit ${r.name} hard. +${money(loot)}, +${r.respect} respect.`));
@@ -484,37 +535,115 @@ export function attackRival(state, rivalId, rng, now) {
       rs.defeated = true;
       respect += r.defeatRespect;
       sp += r.defeatSp;
+      if (s.raidFrom === r.id) s.raidFrom = null;
       events.push(good(`${r.boss} is finished. ${r.name} are no more! +${r.defeatRespect} respect, +${r.defeatSp} SP.`));
     }
     s.rivals[rivalId] = rs;
     reward(s, { cash: loot, respect, sp }, events);
   } else {
+    s.rivals[rivalId] = rs;
     const lost = Math.round(s.cash * FIGHT_LOSS_CASH);
     s.cash -= lost;
     addHeat(s, FIGHT_LOSS_HEAT);
     events.push(bad(`${r.name} fought you off. You lost ${money(lost)} and the shooting drew heat.`));
+  }
+  // A gang that is still standing may hit back soon.
+  if (!rs.defeated && rng() < GANGS.retaliateChance) {
+    const delay = Math.round(GANGS.retaliateMs[0] + rng() * (GANGS.retaliateMs[1] - GANGS.retaliateMs[0]));
+    s.raidFrom = r.id;
+    s.raidIn = Math.min(s.raidIn, delay);
+    events.push(bad(`${r.boss} swears revenge. Expect ${r.name} at your door within minutes.`));
   }
   winCheck(s, events);
   addLog(s, events, now);
   return { ok: true, won, state: s, events };
 }
 
+// The gang that will raid next if known (a retaliating gang), otherwise the
+// strongest active gang; null when no gang can raid.
 export function activeRaider(state) {
+  const forced = RIVALS.find((r) => r.id === state.raidFrom);
+  if (forced && rivalActive(state, forced)) return forced;
   let raider = null;
-  for (const r of RIVALS) {
-    if (rivalUnlocked(state, r) && !rivalState(state, r.id).defeated) raider = r;
-  }
+  for (const r of RIVALS) if (rivalActive(state, r)) raider = r;
   return raider;
 }
 
+export const activeRaiders = (state) => RIVALS.filter((r) => rivalActive(state, r));
+
 export function raidOdds(state, rival) {
-  return clamp(defense(state) / (defense(state) + rival.power), 0.05, 0.95);
+  const d = defense(state);
+  return clamp(d / (d + rivalPower(state, rival)) + perk(state, 'raidOdds'), 0.05, 0.95);
 }
 
-// A rival raids your cash on hand. Resets the raid timer.
+function stealCash(s, rng, r, loss, events) {
+  const frac = RAID_STEAL[0] + rng() * (RAID_STEAL[1] - RAID_STEAL[0]);
+  const stolen = Math.round(s.cash * frac * loss);
+  s.cash -= stolen;
+  events.push(bad(`${r.name} raided you and took ${money(stolen)} of your cash. The vault held.`));
+  return stolen;
+}
+
+// What a raid that got through does, by gang. Falls back to stealing cash
+// when there is nothing of that kind to hit.
+function raidEffect(s, r, rng, now, events) {
+  const loss = 1 - perk(s, 'raidLoss');
+  if (r.raid === 'heat') {
+    const heat = GANGS.heatRaid * loss;
+    addHeat(s, heat);
+    events.push(bad(`${r.name} tipped off the cops about you. +${Math.round(heat)} heat.`));
+    return 0;
+  }
+  if (r.raid === 'weapons') {
+    const total = WEAPONS.reduce((n, w) => n + weaponCount(s, w.id), 0);
+    if (total > 0) {
+      let take = Math.min(total, Math.max(1, Math.ceil(total * GANGS.weaponSteal * loss)));
+      const n = take;
+      for (let left = total; take > 0; take--, left--) {
+        // Pick a copy at random: each weapon type in proportion to its copies.
+        let pick = Math.floor(rng() * left);
+        const w = WEAPONS.find((x) => (pick -= weaponCount(s, x.id)) < 0);
+        s.weapons[w.id] -= 1;
+        if (s.weapons[w.id] === 0) delete s.weapons[w.id];
+      }
+      events.push(bad(`${r.name} rode off with ${n} of your crew's weapons.`));
+      return 0;
+    }
+  }
+  if (r.raid === 'sabotage') {
+    let best = null;
+    let bestIncome = 0;
+    for (const inv of INVESTMENTS) {
+      const income = (s.investments[inv.id] ?? 0) * inv.incomePerMin;
+      if (income > bestIncome) { best = inv; bestIncome = income; }
+    }
+    if (best) {
+      const ms = Math.round(GANGS.sabotageMs * loss);
+      s.sabotage[best.id] = now + ms;
+      events.push(bad(`${r.name} wrecked your ${best.name} business. It earns nothing for ${Math.round(ms / 60_000)} min.`));
+      return 0;
+    }
+  }
+  if (r.raid === 'hack' && s.vault.balance >= 1) {
+    const ms = Math.round(GANGS.freezeMs * loss);
+    s.vaultFrozenUntil = now + ms;
+    events.push(bad(`${r.name} hacked your vault. It's frozen for ${Math.round(ms / 60_000)} min: no deposits, withdrawals or interest.`));
+    return 0;
+  }
+  return stealCash(s, rng, r, loss, events);
+}
+
+// A gang raids you: the one retaliating, otherwise a random active gang.
+// Resets the raid timer.
 export function resolveRaid(state, rng, now) {
-  const r = activeRaider(state);
+  const raiders = activeRaiders(state);
+  const forced = RIVALS.find((g) => g.id === state.raidFrom);
+  let r = null;
+  if (forced && rivalActive(state, forced)) r = forced;
+  else if (raiders.length === 1) r = raiders[0];
+  else if (raiders.length > 1) r = raiders[Math.min(raiders.length - 1, Math.floor(rng() * raiders.length))];
   const s = clone(state);
+  s.raidFrom = null;
   const events = [];
   let repelled = false;
   let stolen = 0;
@@ -525,16 +654,13 @@ export function resolveRaid(state, rng, now) {
       events.push(good(`${r.name} raided you, but you drove them off. +${r.raidRespect} respect.`));
       reward(s, { respect: r.raidRespect }, events);
     } else {
-      const frac = RAID_STEAL[0] + rng() * (RAID_STEAL[1] - RAID_STEAL[0]);
-      stolen = Math.round(s.cash * frac);
-      s.cash -= stolen;
       s.stats.raidsSuffered += 1;
-      events.push(bad(`${r.name} raided you and took ${money(stolen)} of your cash. The vault held.`));
+      stolen = raidEffect(s, r, rng, now, events);
     }
   }
   s.raidIn = Math.round(RAID_MIN_MS + rng() * (RAID_MAX_MS - RAID_MIN_MS));
   addLog(s, events, now);
-  return { ok: true, repelled, stolen, state: s, events };
+  return { ok: true, raider: r?.id ?? null, repelled, stolen, state: s, events };
 }
 
 function winCheck(s, events) {

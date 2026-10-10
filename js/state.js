@@ -24,6 +24,10 @@ export function newState(now) {
     market: freshMarket(now),
     rivals: {},
     raidIn: RAID_MIN_MS,     // ms of play until the next raid
+    raidFrom: null,          // a gang out for revenge makes the next raid
+    sabotage: {},            // business id → time its sabotage ends
+    vaultFrozenUntil: 0,     // Ghost Net hack: vault locked until then
+    encounter: null,         // a street encounter waiting for an answer
     incomePot: 0,
     stats: { missions: 0, successes: 0, arrests: 0, raidsSuffered: 0, raidsRepelled: 0, earned: 0, playMs: 0 },
     won: false,

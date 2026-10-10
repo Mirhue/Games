@@ -258,8 +258,10 @@ export const INVESTMENTS = [
   { id: 'shipping', icon: 'cargo-ship', name: 'Shipping company', basePrice: 12_000_000, incomePerMin: 260_000, rank: 5 },
 ];
 
-// Rival gangs. Attack them to wear down their hp; the strongest undefeated
-// rival you have unlocked raids your cash on hand every 10-20 minutes of play.
+// Rival gangs. Attack them to wear down their hp. Every 10-20 minutes of
+// play a random unlocked, undefeated gang raids you; each gang hurts you in
+// its own way (raid). The Commission (last) only shows up once every other
+// gang is gone.
 export const ATTACK_NERVE = 20;
 export const FIGHT_LOSS_HEAT = 10;
 export const FIGHT_LOSS_CASH = 0.1;
@@ -267,13 +269,41 @@ export const RAID_MIN_MS = 10 * 60_000;
 export const RAID_MAX_MS = 20 * 60_000;
 export const RAID_STEAL = [0.1, 0.3];
 export const OFFLINE_RAID_AFTER_MS = 5 * 60_000;
+// Gangs fight back: they grow while left alone, heal when not hit, and may
+// answer a fight with a raid of their own.
+export const GANGS = {
+  growthPerHour: 0.1,           // +10% power per hour of play
+  growthMax: 0.5,
+  healMs: 20 * 60_000,          // 1 hp back after this much play without a fight
+  retaliateChance: 0.5,
+  retaliateMs: [60_000, 180_000],
+  heatRaid: 30,                 // Cuervos tip off the cops
+  weaponSteal: 0.1,             // Riders take this share of your weapon copies
+  sabotageMs: 10 * 60_000,      // Triad shuts down a business type
+  freezeMs: 10 * 60_000,        // Ghost Net freezes the vault
+};
 export const RIVALS = [
   { id: 'rats', icon: 'rat', name: 'The Dock Rats', boss: 'Fat Tony', rank: 2, power: 60, hp: 3,
-    loot: [3_000, 8_000], respect: 60, defeatRespect: 800, defeatSp: 100, raidRespect: 20 },
-  { id: 'cuervos', icon: 'raven', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 350, hp: 5,
-    loot: [60_000, 150_000], respect: 400, defeatRespect: 6_000, defeatSp: 200, raidRespect: 120 },
-  { id: 'volkov', icon: 'bear-head', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 700, hp: 6,
-    loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, defeatSp: 300, raidRespect: 800 },
+    loot: [3_000, 8_000], respect: 60, defeatRespect: 800, defeatSp: 100, raidRespect: 20,
+    raid: 'cash', raidText: 'steal cash on hand' },
+  { id: 'cuervos', icon: 'raven', name: 'Los Cuervos', boss: 'El Cuervo', rank: 3, power: 300, hp: 4,
+    loot: [50_000, 120_000], respect: 350, defeatRespect: 5_000, defeatSp: 150, raidRespect: 100,
+    raid: 'heat', raidText: 'tip off the cops (+heat)' },
+  { id: 'riders', icon: 'full-motorcycle-helmet', name: "Hell's Riders", boss: 'Big Mike', rank: 3, power: 400, hp: 4,
+    loot: [70_000, 160_000], respect: 400, defeatRespect: 6_000, defeatSp: 150, raidRespect: 120,
+    raid: 'weapons', raidText: 'steal weapons from your crew' },
+  { id: 'triad', icon: 'dragon-head', name: 'Golden Dragon Triad', boss: 'Madam Lin', rank: 4, power: 550, hp: 5,
+    loot: [500_000, 1_200_000], respect: 1_200, defeatRespect: 15_000, defeatSp: 200, raidRespect: 300,
+    raid: 'sabotage', raidText: 'sabotage your best business' },
+  { id: 'ghostnet', icon: 'laptop', name: 'Ghost Net', boss: 'Zero', rank: 4, power: 650, hp: 5,
+    loot: [600_000, 1_400_000], respect: 1_400, defeatRespect: 18_000, defeatSp: 200, raidRespect: 350,
+    raid: 'hack', raidText: 'freeze your vault' },
+  { id: 'volkov', icon: 'bear-head', name: 'Volkov Bratva', boss: 'Dmitri Volkov', rank: 5, power: 800, hp: 6,
+    loot: [2_000_000, 5_000_000], respect: 3_000, defeatRespect: 40_000, defeatSp: 300, raidRespect: 800,
+    raid: 'cash', raidText: 'steal cash on hand' },
+  { id: 'commission', icon: 'fedora', name: 'The Commission', boss: 'Don Corvino', rank: 5, power: 1_500, hp: 8, last: true,
+    loot: [6_000_000, 12_000_000], respect: 6_000, defeatRespect: 60_000, defeatSp: 500, raidRespect: 1_500,
+    raid: 'cash', raidText: 'steal cash on hand' },
 ];
 
 // Win condition: all rivals defeated plus these thresholds.

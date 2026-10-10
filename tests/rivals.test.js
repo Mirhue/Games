@@ -7,11 +7,13 @@ import { RIVALS, RANKS, ATTACK_NERVE, GODFATHER, RAID_MIN_MS, RAID_MAX_MS } from
 const T0 = 1_000_000;
 const seq = (...xs) => { let i = 0; return () => xs[i++ % xs.length]; };
 const top = () => { const s = newState(T0); s.respect = RANKS.at(-1).respect; return s; };
+// A Hustler: only the Dock Rats are unlocked, so raids are always theirs.
+const hustler = () => { const s = newState(T0); s.respect = RANKS[2].respect; return s; };
 const weakest = RIVALS[0];
 
-test('there are 3 rival gangs, each stronger than the last', () => {
-  assert.equal(RIVALS.length, 3);
-  assert.ok(RIVALS[1].power > RIVALS[0].power && RIVALS[2].power > RIVALS[1].power);
+test('there are 7 rival gangs, never weaker than the one before', () => {
+  assert.equal(RIVALS.length, 7);
+  for (let i = 1; i < RIVALS.length; i++) assert.ok(RIVALS[i].power >= RIVALS[i - 1].power, RIVALS[i].id);
 });
 
 test('a rival above your rank cannot be attacked', () => {
@@ -46,8 +48,9 @@ test('a rival at 0 hp is defeated for good with a big respect bonus', () => {
   assert.equal(attackRival(r.state, weakest.id, () => 0, T0).reason, 'defeated');
 });
 
-test('wiping out a gang pays skill points: 100, 200 and 300', () => {
-  assert.deepEqual(RIVALS.map((g) => g.defeatSp), [100, 200, 300]);
+test('wiping out a gang pays skill points, from 100 for the first to 500 for the Commission', () => {
+  assert.equal(RIVALS[0].defeatSp, 100);
+  assert.equal(RIVALS.at(-1).defeatSp, 500);
   const s = top();
   s.rivals[weakest.id] = { hp: 1, defeated: false };
   const r = attackRival(s, weakest.id, () => 0, T0);
@@ -77,16 +80,16 @@ test('fight odds follow power: you / (you + them)', () => {
   assert.equal(attackRival(s, weakest.id, () => odds + 0.001, T0).won, false);
 });
 
-test('the strongest undefeated unlocked rival is the raider', () => {
-  const s = top();
-  assert.equal(activeRaider(s).id, RIVALS[2].id);
-  s.rivals[RIVALS[2].id] = { hp: 0, defeated: true };
-  assert.equal(activeRaider(s).id, RIVALS[1].id);
+test('a raider exists once a gang is unlocked and not yet defeated', () => {
   assert.equal(activeRaider(newState(T0)), null);
+  assert.equal(activeRaider(hustler()).id, 'rats');
+  const s = hustler();
+  s.rivals.rats = { hp: 0, defeated: true };
+  assert.equal(activeRaider(s), null);
 });
 
 test('a lost raid takes 10-30% of cash on hand but never the vault', () => {
-  const s = top();
+  const s = hustler();
   s.cash = 10_000;
   s.vault = { tier: 1, balance: 900 };
   const r = resolveRaid(s, seq(0.999, 0.5), T0);   // defense fails, 20% stolen
@@ -97,7 +100,7 @@ test('a lost raid takes 10-30% of cash on hand but never the vault', () => {
 });
 
 test('a repelled raid gives respect', () => {
-  const s = top();
+  const s = hustler();
   s.cash = 10_000;
   const r = resolveRaid(s, () => 0, T0);
   assert.equal(r.state.cash, 10_000);
@@ -106,7 +109,7 @@ test('a repelled raid gives respect', () => {
 });
 
 test('raid odds follow defense: def / (def + rival power)', () => {
-  const s = top();
+  const s = hustler();
   s.cash = 100;
   const odds = defense(s) / (defense(s) + activeRaider(s).power);
   assert.equal(resolveRaid(s, () => odds - 0.001, T0).repelled, true);
@@ -132,7 +135,7 @@ test('no raids once every rival is defeated', () => {
 });
 
 test('coming back after a long break runs one raid check on cash on hand', () => {
-  const s = top();
+  const s = hustler();
   s.cash = 10_000;
   const { state, summary } = applyOffline(s, T0 + 3_600_000, seq(0.999, 0.5));
   assert.equal(summary.raid, 'lost');

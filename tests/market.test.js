@@ -203,3 +203,42 @@ test('a news headline makes the price jump at once', () => {
   assert.equal(s.market.news.length, 1);
   assert.ok(s.market.prices.silver > METALS[0].fair * Math.exp(MARKET.newsJump[0] - 0.05), `silver ${s.market.prices.silver}`);
 });
+
+test('coming back after hours away logs only the headlines still running', () => {
+  let s = newState(T0);
+  s = marketTick(s, T0 + 23 * 3_600_000, mulberry32(9));
+  const news = s.log.filter((e) => e.kind === 'news');
+  assert.ok(news.length <= s.market.news.length, `${news.length} headlines logged, ${s.market.news.length} still running`);
+});
+
+test('a damaged market in a save is repaired: unknown news, empty history, bad bar counts', () => {
+  const s = migrate({ version: 2, market: { prices: {}, history: { gold: [] , silver: [1, 'x', -3] }, news: [{ metal: 'unobtainium', until: 9e15, text: 'x' }, null], lastStep: 0 },
+    metals: { gold: 'lots', silver: 3.7 }, metalCost: { gold: 'x' }, mastery: { bike: -4, mugging: 'x', pickpocket: 12 } });
+  assert.deepEqual(s.market.news, []);
+  assert.ok(s.market.history.gold.length >= 1);
+  assert.ok(s.market.history.silver.every((p) => Number.isFinite(p) && p > 0));
+  assert.deepEqual(s.metals, { silver: 3 });
+  assert.deepEqual(s.metalCost, {});
+  assert.deepEqual(s.mastery, { pickpocket: 12 });
+});
+
+test('metals survive a lost gang fight', async () => {
+  const { attackRival } = await import('../js/engine.js');
+  const s = buyMetal(rich(), 'gold', 5, T0).state;
+  const r = attackRival(s, 'rats', () => 0.999, T0);
+  assert.equal(r.won, false);
+  assert.equal(r.state.metals.gold, 5);
+});
+
+test('a metal price spike can make you Godfather', async () => {
+  const { tick } = await import('../js/engine.js');
+  const { RIVALS, GODFATHER } = await import('../js/data.js');
+  let s = rich();
+  for (const g of RIVALS) s.rivals[g.id] = { hp: 0, defeated: true };
+  s.respect = GODFATHER.respect;
+  s = buyMetal(s, 'palladium', 60, T0).state;
+  s.cash = 0;
+  assert.equal(tick(s, T0 + 1000).won, false);
+  s.market.prices.palladium = GODFATHER.netWorth;   // a wild spike
+  assert.equal(tick(s, T0 + 1000).won, true);
+});

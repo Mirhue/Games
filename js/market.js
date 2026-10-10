@@ -37,8 +37,9 @@ function maybeNews(s, t, rng, events) {
   const text = list[Math.floor(rng() * list.length)].replace('{metal}', m.name.toLowerCase());
   const jump = (up ? 1 : -1) * between(rng, MARKET.newsJump);
   s.market.prices[m.id] *= Math.exp(jump);
-  s.market.news.push({ metal: m.id, until: t + between(rng, MARKET.newsMs), text });
-  events.push({ kind: 'news', text: `Market news: ${text}` });
+  const until = t + between(rng, MARKET.newsMs);
+  s.market.news.push({ metal: m.id, until, text });
+  events.push({ kind: 'news', text: `Market news: ${text}`, until });
 }
 
 // Advances the market by whole one-minute steps up to `now`.
@@ -72,7 +73,9 @@ export function marketTick(state, now, rng) {
     }
   }
   s.market.lastStep = end;
-  addLog(s, events, now);
+  // After time away, only report the headlines that are still running.
+  const fresh = events.filter((e) => e.until > now).map(({ kind, text }) => ({ kind, text }));
+  addLog(s, fresh, now);
   return s;
 }
 

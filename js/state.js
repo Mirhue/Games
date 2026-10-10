@@ -93,7 +93,27 @@ export function migrate(obj) {
     if (!out.market.history || typeof out.market.history !== 'object') out.market.history = {};
     if (!Array.isArray(out.market.history[m.id])) out.market.history[m.id] = [out.market.prices[m.id]];
   }
-  if (!Array.isArray(out.market.news)) out.market.news = [];
+  for (const m of METALS) {
+    const clean = out.market.history[m.id].filter((p) => Number.isFinite(p) && p > 0);
+    out.market.history[m.id] = clean.length ? clean : [out.market.prices[m.id]];
+  }
+  const isMetal = (id) => METALS.some((m) => m.id === id);
+  out.market.news = (Array.isArray(out.market.news) ? out.market.news : [])
+    .filter((n) => n && isMetal(n.metal) && Number.isFinite(n.until) && typeof n.text === 'string');
+  // Bars are whole numbers within the holding limit; cost basis only for bars owned.
+  for (const [id, v] of Object.entries(out.metals)) {
+    const max = METALS.find((m) => m.id === id)?.maxBars ?? 0;
+    const n = Math.min(Math.floor(v), max);
+    if (Number.isFinite(n) && n >= 1) out.metals[id] = n;
+    else delete out.metals[id];
+  }
+  for (const [id, v] of Object.entries(out.metalCost)) {
+    if (!out.metals[id] || !Number.isFinite(v) || v < 0) delete out.metalCost[id];
+  }
+  for (const [id, v] of Object.entries(out.mastery)) {
+    if (Number.isFinite(v) && v >= 1) out.mastery[id] = Math.floor(v);
+    else delete out.mastery[id];
+  }
   if (!Number.isFinite(out.market.lastStep)) out.market.lastStep = out.lastTick;
   for (const key of ['vault', 'stats']) {
     out[key] = { ...base[key], ...out[key] };

@@ -3,7 +3,7 @@
 import {
   NERVE_MAX_BASE, NERVE_REGEN_MS, RANKS, MISSIONS,
   HEAT_MAX, HEAT_DECAY_MS, HEAT_CHANCE_PENALTY, HEAT_ARREST_BONUS, ARREST_BASE,
-  JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS,
+  JAIL_MS_PER_TIER, SEIZE_FRACTION, BAIL_MIN, BAIL_NET_WORTH_FRACTION, BRIBE_PER_HEAT, SKILLS, SKILL_GROWTH,
   BASE_POWER, WEAPON_BONUS_CAP, WEAPONS, VAULTS,
   INVESTMENTS, INVESTMENT_GROWTH, PERK_CAPS, OFFLINE_CAP_MS,
   RIVALS, ATTACK_NERVE, FIGHT_LOSS_HEAT, FIGHT_LOSS_CASH, RAID_MIN_MS, RAID_MAX_MS, RAID_STEAL,
@@ -48,17 +48,37 @@ export function nerveRegenMs(state) {
   return NERVE_REGEN_MS / (1 + perk(state, 'nerveRegen'));
 }
 
+export const skillLevel = (state, skillId) => state.skills[skillId] ?? 0;
+
+// SP cost of the next level, or null when the skill is maxed.
+export function skillCost(state, skillId) {
+  const k = SKILLS.find((x) => x.id === skillId);
+  const level = skillLevel(state, skillId);
+  if (level >= k.maxLevel) return null;
+  return Math.round(k.baseCost * SKILL_GROWTH ** level);
+}
+
+export function skillUnlocked(state, k) {
+  const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
+  return !prev || skillLevel(state, prev.id) >= 1;
+}
+
+// Learns a skill or raises it by one level.
 export function buySkill(state, skillId, now) {
   const k = SKILLS.find((x) => x.id === skillId);
   if (!k) return refuse(state, 'unknown', 'Unknown skill.');
-  if (state.skills[k.id]) return refuse(state, 'owned', 'You already know that.');
-  const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
-  if (prev && !state.skills[prev.id]) return refuse(state, 'order', `Learn ${prev.name} first.`);
-  if (state.sp < k.cost) return refuse(state, 'sp', `You need ${k.cost} SP.`);
+  if (!skillUnlocked(state, k)) {
+    const prev = SKILLS.find((x) => x.branch === k.branch && x.idx === k.idx - 1);
+    return refuse(state, 'order', `Learn ${prev.name} first.`);
+  }
+  const cost = skillCost(state, skillId);
+  if (cost === null) return refuse(state, 'max', `${k.name} is already maxed out.`);
+  if (state.sp < cost) return refuse(state, 'sp', `You need ${cost} SP.`);
   const s = clone(state);
-  s.sp -= k.cost;
-  s.skills[k.id] = 1;
-  const events = [good(`You learned ${k.name}.`)];
+  s.sp -= cost;
+  s.skills[k.id] = skillLevel(state, k.id) + 1;
+  const level = s.skills[k.id];
+  const events = [good(level === 1 ? `You learned ${k.name}.` : `${k.name} is now level ${level}.`)];
   addLog(s, events, now);
   return { ok: true, state: s, events };
 }
